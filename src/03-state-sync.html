@@ -1,0 +1,121 @@
+/* ---------- state ---------- */
+const DEFAULT_PAY=['Cash','UPI','Credit card','Debit card','Net banking','Wallet'];
+function newProfile(){return{name:'',currency:'INR',theme:'system',cats:JSON.parse(JSON.stringify(DEFAULT_CATS)),budget:{overall:null,cats:{}},payments:DEFAULT_PAY.slice(),merchants:[],mcat:{},recurring:[],updatedAt:0}}
+function normProfile(p){
+  const n=Object.assign(newProfile(),p||{});
+  if(!Array.isArray(n.cats))n.cats=[];
+  DEFAULT_CATS.forEach(d=>{if(!n.cats.some(c=>c.id===d.id))n.cats.push(Object.assign({},d))});
+  n.budget=n.budget&&typeof n.budget==='object'?n.budget:{};
+  if(!n.budget.cats||typeof n.budget.cats!=='object')n.budget.cats={};
+  if(n.budget.overall==null||!(n.budget.overall>0))n.budget.overall=null;
+  if(!CURRENCIES.includes(n.currency))n.currency='INR';
+  if(!Array.isArray(n.payments)||!n.payments.length)n.payments=DEFAULT_PAY.slice();
+  if(!Array.isArray(n.merchants))n.merchants=[];
+  if(!Array.isArray(n.recurring))n.recurring=[];
+  if(!n.mcat||typeof n.mcat!=='object'||Array.isArray(n.mcat))n.mcat={};
+  return n;
+}
+const S={uid:null,profile:newProfile(),exp:{},pending:{e:{},p:false},tab:'home',net:navigator.onLine!==false,
+  syncing:false,hasDb:false,writable:true,reached:false,unreach:false,trend:'daily',
+  hist:{q:'',cat:[],pay:[],from:'',to:'',min:'',max:'',open:false},lastCat:'food',lastPay:'',dashMonth:mkey(today()),sub:null};
+const cacheKey=()=>'et.v1.'+(S.uid||lsGet('et.last')||'anon');
+function save(){lsSet(cacheKey(),JSON.stringify({profile:S.profile,exp:S.exp,pending:S.pending,lastCat:S.lastCat,lastPay:S.lastPay}))}
+function loadCache(){
+  const raw=lsGet(cacheKey());if(!raw)return;
+  try{const d=JSON.parse(raw);S.profile=normProfile(d.profile);S.exp=d.exp||{};S.pending=d.pending||{e:{},p:false};
+    if(!S.pending.e)S.pending.e={};S.lastCat=d.lastCat||'food';S.lastPay=d.lastPay||''}catch(e){}
+}
+const live=()=>Object.values(S.exp).filter(e=>!e.deleted);
+const merchantList=()=>[...new Set(S.profile.merchants.concat(live().map(x=>x.merchant).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
+const catOf=id=>S.profile.cats.find(c=>c.id===id)||S.profile.cats.find(c=>c.id==='other');
+const hasPending=()=>S.pending.p||Object.keys(S.pending.e).length>0;
+function applyTheme(){const t=S.profile.theme,r=document.documentElement;
+  if(t==='dark'||t==='light')r.setAttribute('data-theme',t);else r.removeAttribute('data-theme')}
+
+/* ---------- mutations (always local first) ---------- */
+function putExpense(e){e.updatedAt=Date.now();if(!e.createdAt)e.createdAt=e.updatedAt;S.exp[e.id]=e;S.pending.e[e.id]=1;
+  S.lastCat=e.cat;save();render();setStatus();flush()}
+function delExpense(id){const e=S.exp[id];if(!e)return;S.exp[id]=Object.assign({},e,{deleted:true,updatedAt:Date.now()});
+  S.pending.e[id]=1;save();render();setStatus();flush()}
+function putProfile(patch,quiet){Object.assign(S.profile,patch);S.profile.updatedAt=Date.now();S.pending.p=true;
+  applyTheme();save();if(!quiet)render();setStatus();flush()}
+
+/* ---------- sync ---------- */
+let DB=null,flushing=false,flushAgain=false,unsubs=[],retryT=null,reachT=null;
+const profRef=()=>DB.doc('data/users/'+S.uid+'/profile');
+const expCol=()=>profRef().collection('expenses');
+function setStatus(){
+  const el=$('#sync');if(!el)return;let cls='',txt='All synced';
+  if(!S.net||(S.unreach&&!S.reached)){cls='off';txt='Offline — changes will sync'}
+  else if(!S.hasDb||!S.writable){cls='off';txt='Saved on this device only'}
+  else if(S.syncing||hasPending()){cls='sync';txt='Syncing…'}
+  el.className='pill '+cls;el.innerHTML='<span class="d"></span>'+txt;
+}
+async function flush(){
+  if(!DB||!S.uid||!S.writable||!S.net)return;
+  if(flushing){flushAgain=true;return}
+  flushing=true;S.syncing=hasPending();setStatus();
+  try{
+    if(S.pending.p){const snap=JSON.parse(JSON.stringify(S.profile));await profRef().set(snap);
+      if(S.profile.updatedAt===snap.updatedAt)S.pending.p=false}
+    for(const id of Object.keys(S.pending.e)){
+      const rec=S.exp[id];if(!rec){delete S.pending.e[id];continue}
+      const ts=rec.updatedAt;await expCol().doc(id).set(JSON.parse(JSON.stringify(rec)));
+      if(S.exp[id]&&S.exp[id].updatedAt===ts)delete S.pending.e[id];
+    }
+    save();
+  }catch(err){
+    const c=err&&err.code;
+    if(c==='invalid_argument'||c==='revoked'||c==='not_granted'){S.writable=false}
+    else if(c==='quota_exceeded'){toast('Cloud storage is full. Delete old expenses to keep syncing.')}
+    clearTimeout(retryT);retryT=setTimeout(flush,8000);
+  }
+  flushing=false;S.syncing=false;setStatus();
+  if(flushAgain){flushAgain=false;flush()}
+}
+function onExpSnap(snap){
+  let ch=false;const seen={};
+  snap.docs.forEach(d=>{const r=d.data();if(!r||!r.id)return;seen[r.id]=1;const l=S.exp[r.id];
+    if(!l||r.updatedAt>l.updatedAt){S.exp[r.id]=r;if(S.pending.e[r.id])delete S.pending.e[r.id];ch=true}});
+  if(!snap.metadata.fromCache){
+    S.reached=true;S.unreach=false;clearTimeout(reachT);
+    Object.keys(S.exp).forEach(id=>{if(!seen[id]&&!S.pending.e[id]){delete S.exp[id];ch=true}});
+  }
+  if(ch){save();render()}
+  setStatus();
+  if(!snap.metadata.fromCache)runRecurring();
+}
+function onProfSnap(doc){
+  if(!doc.exists){if(S.profile.updatedAt===0){S.profile.updatedAt=Date.now()}S.pending.p=true;flush();return}
+  const r=doc.data();
+  if(r&&r.updatedAt>S.profile.updatedAt){S.profile=normProfile(r);applyTheme();save();render()}
+}
+function connect(){
+  unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];
+  if(!DB||!S.uid)return;
+  clearTimeout(reachT);reachT=setTimeout(()=>{if(!S.reached){S.unreach=true;setStatus();runRecurring()}},10000);
+  const bad=e=>{if(e&&(e.code==='revoked'||e.code==='invalid_argument')){S.writable=false}S.unreach=true;setStatus()};
+  try{
+    unsubs.push(profRef().onSnapshot(onProfSnap,bad));
+    unsubs.push(expCol().onSnapshot(onExpSnap,bad));
+  }catch(e){S.hasDb=false}
+  flush();
+}
+addEventListener('online',()=>{S.net=true;setStatus();flush()});
+addEventListener('offline',()=>{S.net=false;setStatus()});
+setInterval(()=>{if(hasPending()&&S.net)flush()},15000);
+
+/* ---------- destructive actions ---------- */
+async function wipeExpenses(){
+  if(S.hasDb&&!S.net){toast('Connect to the internet to delete your cloud data.');return false}
+  let ids=Object.keys(S.exp);
+  S.exp={};S.pending.e={};save();render();
+  if(DB&&S.uid&&S.net){try{const all=await expCol().get();ids=ids.concat(all.docs.map(d=>d.id));
+    for(const id of new Set(ids)){await expCol().doc(id).delete()}}catch(e){toast('Some cloud data could not be deleted. Try again.');return false}}
+  return true;
+}
+async function wipeAccount(){
+  if(!(await wipeExpenses()))return;
+  if(DB&&S.uid){try{await profRef().delete()}catch(e){}}
+  const k=cacheKey();lsDel(k);S.profile=normProfile({updatedAt:Date.now()});S.pending={e:{},p:true};applyTheme();save();render();flush();
+}

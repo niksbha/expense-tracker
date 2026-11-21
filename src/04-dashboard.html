@@ -1,0 +1,92 @@
+/* ---------- calculations ---------- */
+const sum=a=>a.reduce((s,e)=>s+e.amount,0);
+const monthExp=k=>live().filter(e=>mkey(e.date)===k);
+function byCat(list){const m={};list.forEach(e=>{m[e.cat]=(m[e.cat]||0)+e.amount});
+  return Object.entries(m).map(([id,v])=>({id,v})).sort((a,b)=>b.v-a.v)}
+function budgetRows(k){
+  const list=monthExp(k),rows=[],b=S.profile.budget;
+  if(b.overall)rows.push({key:'overall',name:'Overall budget',limit:b.overall,spent:sum(list)});
+  const bc=byCat(list);
+  S.profile.cats.forEach(c=>{const lim=b.cats[c.id];if(lim>0){const f=bc.find(x=>x.id===c.id);rows.push({key:c.id,name:c.name,limit:lim,spent:f?f.v:0,cat:c})}});
+  rows.forEach(r=>{r.pct=r.spent/r.limit*100;r.level=r.pct>=100?'crit':r.pct>=80?'warn':''});
+  return rows;
+}
+const compactFmt={};
+function compact(n){const cur=S.profile.currency;if(!compactFmt[cur])compactFmt[cur]=new Intl.NumberFormat(cur==='INR'?'en-IN':undefined,{notation:'compact',style:'currency',currency:cur,maximumFractionDigits:1});
+  return compactFmt[cur].format(n)}
+function niceMax(v){if(v<=0)return 100;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=1?1:n<=2?2:n<=5?5:10)*p}
+
+/* ---------- charts ---------- */
+function donut(rows,total){
+  const R=54,C=2*Math.PI*R;let off=0,out='';
+  rows.forEach(r=>{const frac=r.v/total,len=Math.max(0,frac*C-(rows.length>1?2.5:0));
+    out+='<circle class="slice" cx="70" cy="70" r="'+R+'" fill="none" stroke="'+r.color+'" stroke-width="20" stroke-dasharray="'+len.toFixed(2)+' '+C.toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'" transform="rotate(-90 70 70)" data-tip="'+esc(r.name+' · '+money(r.v)+' · '+Math.round(frac*100)+'%')+'"/>';
+    off+=frac*C});
+  return '<svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label="Spending by category">'+out+
+    '<text x="70" y="66" text-anchor="middle" font-size="11" fill="var(--muted)">Total</text>'+
+    '<text x="70" y="84" text-anchor="middle" font-size="15" font-weight="700" fill="var(--fg)">'+esc(compact(total))+'</text></svg>';
+}
+function barChart(vals,labels,tips,showEvery){
+  const W=340,H=176,ml=40,mr=6,mt=16,mb=22,n=vals.length,max=niceMax(Math.max.apply(null,vals.concat([0])));
+  const pw=W-ml-mr,ph=H-mt-mb,slot=pw/n,bw=Math.min(24,slot-3);let g='',b='',x='',hit='';
+  [0,.5,1].forEach(t=>{const y=mt+ph-t*ph;g+='<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+y+'" y2="'+y+'" stroke="'+(t===0?'var(--line)':'var(--line)')+'" stroke-width="1"/>'+
+    '<text x="'+(ml-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="var(--muted)">'+esc(t===0?'0':compact(max*t))+'</text>'});
+  const mi=vals.indexOf(Math.max.apply(null,vals));
+  vals.forEach((v,i)=>{const cx=ml+slot*i+slot/2,h=v/max*ph,y=mt+ph-h;
+    if(h>0){const r=Math.min(4,h);b+='<path d="M'+(cx-bw/2)+' '+(mt+ph)+'V'+(y+r)+'a'+r+' '+r+' 0 0 1 '+r+' -'+r+'h'+(bw-2*r)+'a'+r+' '+r+' 0 0 1 '+r+' '+r+'V'+(mt+ph)+'z" fill="var(--accent)"/>'}
+    if(i%showEvery===0)x+='<text x="'+cx+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--muted)">'+esc(labels[i])+'</text>';
+    hit+='<rect x="'+(cx-slot/2)+'" y="'+mt+'" width="'+slot+'" height="'+ph+'" fill="transparent" data-tip="'+esc(tips[i])+'"/>'});
+  if(vals[mi]>0){const cx=ml+slot*mi+slot/2,y=mt+ph-vals[mi]/max*ph;
+    const ax=Math.max(ml+14,Math.min(W-mr-14,cx));
+    b+='<text x="'+ax+'" y="'+(y-4)+'" text-anchor="middle" font-size="10" font-weight="600" fill="var(--fg2)">'+esc(compact(vals[mi]))+'</text>'}
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Spending trend bar chart">'+g+b+x+hit+'</svg>';
+}
+
+/* ---------- home ---------- */
+function vHome(){
+  const all=live(),t=today(),k=S.dashMonth,cur=k===mkey(t);
+  if(!all.length)return '<div class="empty"><b>No expenses yet</b>Tap + to add your first expense.</div>';
+  const list=monthExp(k),total=sum(list),todayAmt=sum(all.filter(e=>e.date===t));
+  const elapsed=cur?+t.slice(8):daysIn(k),avg=total/elapsed;
+  const [py,pm]=[+k.slice(0,4),+k.slice(5)];
+  const prev=pm===1?(py-1)+'-12':py+'-'+pad2(pm-1),next=pm===12?(py+1)+'-01':py+'-'+pad2(pm+1);
+  let h='<div class="card stack"><div class="row"><button class="iconbtn" data-act="month" data-k="'+prev+'" aria-label="Previous month">'+ic('back')+'</button>'+
+    '<div class="grow fg2" style="text-align:center;font-weight:600">'+monthName(k)+'</div>'+
+    '<button class="iconbtn" data-act="month" data-k="'+next+'" aria-label="Next month"'+(cur?' disabled style="opacity:.3"':'')+'>'+ic('chev')+'</button></div>'+
+    '<div><div class="small fg2">Total spent'+(cur?' this month':'')+'</div><div class="hero num">'+money(total)+'</div></div>'+
+    '<div class="stats"><div class="stat"><div class="v num">'+money(todayAmt)+'</div><div class="l">Today</div></div>'+
+    '<div class="stat"><div class="v num">'+money(avg)+'</div><div class="l">Daily average</div></div></div></div>';
+  if(cur){const rows=budgetRows(k),hot=rows.filter(r=>r.level);
+    hot.forEach(r=>{h+='<div class="alert '+r.level+'" style="margin-top:12px">'+ic('warn')+'<span>'+(r.level==='crit'?
+      esc(r.name)+' is over the limit: '+money(r.spent)+' of '+money(r.limit)+'.':
+      esc(r.name)+' has reached '+Math.round(r.pct)+'% of its limit ('+money(r.spent)+' of '+money(r.limit)+').')+'</span></div>'});
+    const ov=rows.find(r=>r.key==='overall');
+    if(ov)h+='<div class="card" style="margin-top:12px"><div class="row small"><span class="grow fg2">Monthly budget</span><span class="num">'+money(ov.spent)+' / '+money(ov.limit)+'</span></div>'+
+      '<div class="bar '+ov.level+'" style="margin-top:8px"><i style="width:'+Math.min(100,ov.pct)+'%"></i></div></div>'}
+  h+='<h2>By category</h2><div class="card">';
+  const bc=byCat(list);
+  if(!bc.length)h+='<div class="muted small">No spending in '+monthName(k)+'.</div>';
+  else{let rows=bc.slice(0,6).map(r=>{const c=catOf(r.id);return{name:c.name,v:r.v,color:'var(--c'+c.color+')'}});
+    if(bc.length>6)rows.push({name:'Everything else',v:sum(bc.slice(6).map(r=>({amount:r.v}))),color:'var(--muted)'});
+    h+='<div class="donutwrap"><div class="chartbox">'+donut(rows,total)+'</div><div class="legend grow" style="min-width:150px">'+
+      rows.map(r=>'<div class="lr"><span class="dot" style="background:'+r.color+'"></span><span class="n">'+esc(r.name)+'</span><span class="num fg2">'+Math.round(r.v/total*100)+'%</span><span class="num" style="min-width:64px;text-align:right">'+esc(compact(r.v))+'</span></div>').join('')+'</div></div>'}
+  h+='</div>';
+  h+='<h2>Spending trend</h2><div class="card stack"><div class="seg" role="group" aria-label="Trend range">'+
+    '<button data-act="trend" data-v="daily" aria-pressed="'+(S.trend==='daily')+'">Daily</button><button data-act="trend" data-v="monthly" aria-pressed="'+(S.trend==='monthly')+'">Monthly</button></div>';
+  let vals=[],labels=[],tips=[],every=1;
+  if(S.trend==='daily'){const n=daysIn(k);vals=Array(n).fill(0);list.forEach(e=>{vals[+e.date.slice(8)-1]+=e.amount});
+    labels=vals.map((_,i)=>String(i+1));tips=vals.map((v,i)=>(i+1)+' '+MONTHS[+k.slice(5)-1].slice(0,3)+' · '+money(v));every=5}
+  else{const keys=[];let y=+k.slice(0,4),m=+k.slice(5);for(let i=0;i<6;i++){keys.unshift(y+'-'+pad2(m));m--;if(m===0){m=12;y--}}
+    keys.forEach(kk=>{const v=sum(monthExp(kk));vals.push(v);labels.push(MONTHS[+kk.slice(5)-1].slice(0,3));tips.push(monthName(kk)+' · '+money(v))})}
+  h+='<div class="chartbox">'+barChart(vals,labels,tips,every)+'</div>'+
+    '<details><summary class="small fg2" style="cursor:pointer;min-height:32px">View as table</summary><table class="small num" style="width:100%;border-collapse:collapse">'+
+    vals.map((v,i)=>v>0||S.trend==='monthly'?'<tr><td style="padding:4px 0" class="fg2">'+esc(tips[i].split(' · ')[0])+'</td><td style="text-align:right">'+money(v)+'</td></tr>':'').join('')+'</table></details></div>';
+  const rec=all.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,5);
+  h+='<h2>Recent</h2>'+rec.map(itemHtml).join('')+'<button class="btn sec block" data-act="tab" data-t="history" style="margin-top:6px">See all expenses</button>';
+  return h;
+}
+function itemHtml(e,hist){const c=catOf(e.cat),sub=[e.merchant?c.name:'',e.payment,e.note,dayName(e.date)].filter(Boolean).join(' · ');
+  return '<button class="item" data-act="edit" data-id="'+e.id+'"><span class="cico" style="background:var(--c'+c.color+')">'+ic(c.icon)+'</span>'+
+    '<span class="grow"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(e.merchant||c.name)+'</div>'+
+    '<div class="small fg2" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(sub)+'</div></span>'+
+    '<span class="amt num">'+money(e.amount)+'</span></button>'}

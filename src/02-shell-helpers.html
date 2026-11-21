@@ -1,0 +1,78 @@
+<div id="app">
+  <header class="top"><h1>Expense Tracker</h1><span id="sync" class="pill" role="status" aria-live="polite"></span></header>
+  <main id="view"></main>
+</div>
+<nav class="tabs" aria-label="Main"><div class="in" id="tabs"></div></nav>
+<div id="layer"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+"use strict";
+const ICONS={
+utensils:'<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 1.5-3 4-3 7h3v11"/>',
+bus:'<rect x="4" y="3" width="16" height="14" rx="3"/><path d="M4 11h16M8 20v-3M16 20v-3"/><circle cx="8" cy="14.2" r=".6"/><circle cx="16" cy="14.2" r=".6"/>',
+bag:'<path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/>',
+heart:'<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
+film:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4"/>',
+book:'<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z"/><path d="M5 17a3 3 0 0 1 3-3h10"/>',
+dots:'<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+tag:'<path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1.2"/>',
+home:'<path d="M4 11l8-7 8 7v9H4v-9z"/><path d="M10 20v-5h4v5"/>',
+coffee:'<path d="M5 8h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8z"/><path d="M16 9h2a2 2 0 0 1 0 4h-2M8 3v2M12 3v2"/>',
+gift:'<rect x="4" y="9" width="16" height="11" rx="1"/><path d="M3 9h18M12 9v11M12 9c-3 0-4-4-1.5-4S12 9 12 9zM12 9c3 0 4-4 1.5-4S12 9 12 9z"/>',
+paw:'<circle cx="7" cy="10" r="1.8"/><circle cx="12" cy="7" r="1.8"/><circle cx="17" cy="10" r="1.8"/><path d="M8 17c0-3 2-5 4-5s4 2 4 5c0 2-2 2-4 1-2 1-4 1-4-1z"/>',
+plane:'<path d="M21 4L3 11l6 2 2 6 10-15z"/><path d="M9 13l5-4"/>',
+phone:'<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
+wrench:'<path d="M15 4a4 4 0 0 0-3.5 5.5L4 17l3 3 7.5-7.5A4 4 0 0 0 20 9l-3 2-2.5-.5L14 8l2-3z"/>',
+music:'<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
+dumbbell:'<path d="M6 8v8M3 10v4M18 8v8M21 10v4M6 12h12"/>',
+car:'<path d="M4 15l2-6h12l2 6v4H4v-4z"/><path d="M4 15h16"/><circle cx="8" cy="17" r=".6"/><circle cx="16" cy="17" r=".6"/>',
+bolt:'<path d="M13 3L5 13h6l-1 8 8-10h-6l1-8z"/>',
+plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M6 6l12 12M18 6L6 18"/>',
+trash:'<path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/>',
+search:'<circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/>',
+filter:'<path d="M4 6h16M7 12h10M10 18h4"/>',check:'<path d="M5 12l5 5 9-10"/>',
+chev:'<path d="M9 6l6 6-6 6"/>',back:'<path d="M15 6l-6 6 6 6"/>',
+chart:'<path d="M5 20V10M12 20V4M19 20v-7"/>',
+list:'<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>',
+user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
+backspace:'<path d="M21 5H9l-6 7 6 7h12V5z"/><path d="M13 9l4 6M17 9l-4 6"/>',
+download:'<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
+trend:'<path d="M4 17l5-6 4 4 7-9"/><path d="M15 6h5v5"/>',
+warn:'<path d="M12 4l9 16H3L12 4z"/><path d="M12 10v4M12 17h.01"/>'};
+const ic=(n,c)=>'<svg class="i'+(c?' '+c:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(ICONS[n]||ICONS.tag)+'</svg>';
+const PICK_ICONS=['tag','home','coffee','gift','paw','plane','phone','wrench','music','dumbbell','car','bolt','utensils','bus','bag','receipt','heart','film','book','dots'];
+const COLORS=12;
+const DEFAULT_CATS=[
+ {id:'food',name:'Food',icon:'utensils',color:1},{id:'transport',name:'Transport',icon:'bus',color:0},
+ {id:'shopping',name:'Shopping',icon:'bag',color:4},{id:'bills',name:'Bills',icon:'receipt',color:6},
+ {id:'health',name:'Health',icon:'heart',color:7},{id:'entertainment',name:'Entertainment',icon:'film',color:2},
+ {id:'education',name:'Education',icon:'book',color:5},{id:'other',name:'Other',icon:'dots',color:8}];
+const DEFAULT_IDS=DEFAULT_CATS.map(c=>c.id);
+const CURRENCIES=['INR','USD','EUR','GBP','AED','AUD','CAD','SGD','JPY'];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>document.querySelector(s);
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};
+const pad2=n=>String(n).padStart(2,'0');
+const dstr=d=>d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+const today=()=>dstr(new Date());
+const parseD=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(s,n)=>{const d=parseD(s);d.setDate(d.getDate()+n);return dstr(d)};
+const mkey=s=>s.slice(0,7);
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const monthName=k=>MONTHS[+k.slice(5)-1]+' '+k.slice(0,4);
+const dayName=s=>{const t=today();if(s===t)return'Today';if(s===addDays(t,-1))return'Yesterday';
+  return parseD(s).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})};
+const daysIn=k=>new Date(+k.slice(0,4),+k.slice(5),0).getDate();
+const newId=()=>'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fmtCache={};
+function money(n,full){
+  const cur=S.profile.currency;const frac=(full||Math.abs(n%1)>0.004)?2:0;const key=cur+frac;
+  if(!fmtCache[key])fmtCache[key]=new Intl.NumberFormat(cur==='INR'?'en-IN':undefined,{style:'currency',currency:cur,minimumFractionDigits:frac,maximumFractionDigits:frac});
+  return fmtCache[key].format(n);
+}
+function curSym(){try{return new Intl.NumberFormat(S.profile.currency==='INR'?'en-IN':undefined,{style:'currency',currency:S.profile.currency}).formatToParts(0).find(p=>p.type==='currency').value}catch(e){return''}}
+const round2=n=>Math.round(n*100)/100;

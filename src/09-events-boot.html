@@ -1,0 +1,119 @@
+/* ---------- events ---------- */
+function setTab(t){S.tab=t;S.sub=null;S.confirm=null;render();scrollTo(0,0)}
+document.addEventListener('click',async ev=>{
+  const tg=ev.target;
+  if(tg.classList&&tg.classList.contains('scrim')){closeSheet();return}
+  if(!(tg.closest&&tg.closest('[data-tip]')))hideTip();
+  const el=tg.closest&&tg.closest('[data-act]');if(!el)return;
+  const a=el.dataset.act,d=el.dataset;
+  switch(a){
+    case'tab':setTab(d.t);break;
+    case'sub':S.sub=d.t||null;S.tab='profile';S.confirm=null;render();scrollTo(0,0);break;
+    case'add':openExpense();break;
+    case'edit':openExpense(d.id);break;
+    case'closeSheet':closeSheet();break;
+    case'month':if(d.k<=mkey(today())){S.dashMonth=d.k;render()}break;
+    case'trend':S.trend=d.v;render();break;
+    case'toggleFilters':S.hist.open=!S.hist.open;render();break;
+    case'hcat':{const c=S.hist.cat,i=c.indexOf(d.id);i<0?c.push(d.id):c.splice(i,1);el.setAttribute('aria-pressed',String(i<0));renderHist();break}
+    case'clearFilters':S.hist=Object.assign(S.hist,{cat:[],pay:[],from:'',to:'',min:'',max:''});render();break;
+    case'pickCat':SH.cat=d.id;$('#cchips').innerHTML=chipsHtml();refreshMerchantUI();break;
+    case'mAll':SH.allM=!SH.allM;refreshMerchantUI();break;
+    case'key':keyEntry(d.k);break;
+    case'saveExp':saveExpense();break;
+    case'delAsk':$('#delbox').innerHTML='<div class="confirm"><div>Delete this expense? It will be removed from all your devices.</div><div class="two"><button class="btn sec" data-act="delNo">Cancel</button><button class="btn danger" data-act="delYes">Delete</button></div></div>';break;
+    case'delNo':$('#delbox').innerHTML='<button class="btn danger block" data-act="delAsk">'+ic('trash')+' Delete expense</button>';break;
+    case'delYes':{const id=SH.id,rec=Object.assign({},S.exp[id]);closeSheet();delExpense(id);
+      toast('Expense deleted',()=>{delete rec.deleted;putExpense(rec)});break}
+    case'undo':if(UNDO){const f=UNDO;UNDO=null;$('#toast').hidden=true;f()}break;
+    case'pickMerch':applyMerchant(d.name);break;
+    case'hpay':{const c=S.hist.pay,i=c.indexOf(d.name);i<0?c.push(d.name):c.splice(i,1);el.setAttribute('aria-pressed',String(i<0));renderHist();break}
+    case'newList':openListItem(d.k);break;
+    case'editList':openListItem(d.k,d.name);break;
+    case'listSave':saveListItem();break;
+    case'listDelAsk':$('#ldel').innerHTML='<div class="confirm"><div>Delete this entry? It is removed from past expenses too.</div><div class="two"><button class="btn sec" data-act="listDelNo">Cancel</button><button class="btn danger" data-act="listDelYes">Delete</button></div></div>';break;
+    case'listDelNo':$('#ldel').innerHTML='<button class="btn danger block" data-act="listDelAsk">'+ic('trash')+' Delete</button>';break;
+    case'listDelYes':deleteListItem();break;
+    case'newRecur':openRecur();break;
+    case'editRecur':openRecur(d.id);break;
+    case'recurSave':saveRecur();break;
+    case'recurDelAsk':$('#rdel').innerHTML='<div class="confirm"><div>Delete this recurring expense? Entries already recorded stay.</div><div class="two"><button class="btn sec" data-act="recurDelNo">Cancel</button><button class="btn danger" data-act="recurDelYes">Delete</button></div></div>';break;
+    case'recurDelNo':$('#rdel').innerHTML='<button class="btn danger block" data-act="recurDelAsk">'+ic('trash')+' Delete recurring</button>';break;
+    case'recurDelYes':putProfile({recurring:S.profile.recurring.filter(x=>x.id!==SR.id)});closeSheet();toast('Recurring expense deleted');break;
+    case'newCat':openCat();break;
+    case'editCat':openCat(d.id);break;
+    case'catIcon':SC.icon=d.v;$('#cicons').innerHTML=iconPickHtml();break;
+    case'catColor':SC.color=+d.v;$('#cswatch').innerHTML=swatchHtml();break;
+    case'catSave':saveCat();break;
+    case'catDelAsk':$('#cdel').innerHTML='<div class="confirm"><div>Delete this category? Its expenses move to Other.</div><div class="two"><button class="btn sec" data-act="catDelNo">Cancel</button><button class="btn danger" data-act="catDelYes">Delete</button></div></div>';break;
+    case'catDelNo':$('#cdel').innerHTML='<button class="btn danger block" data-act="catDelAsk">'+ic('trash')+' Delete category</button>';break;
+    case'catDelYes':deleteCat();break;
+    case'theme':putProfile({theme:d.v});break;
+    case'askWipeDevice':S.confirm='device';render();break;
+    case'askWipe':S.confirm='wipe';render();break;
+    case'askAccount':S.confirm='account';render();break;
+    case'confirmNo':S.confirm=null;render();break;
+    case'confirmYes':{
+      const w=d.id;S.confirm=null;
+      if(w==='device'){lsDel(cacheKey());S.exp={};S.pending={e:{},p:false};S.profile=normProfile();S.reached=false;applyTheme();render();
+        if(S.hasDb)connect();toast('This device was cleared')}
+      else if(w==='wipe'){render();if(await wipeExpenses())toast('All expenses deleted')}
+      else if(w==='account'){render();await wipeAccount();toast('Account data deleted')}
+      break}
+    case'exportAll':exportCsv(live());break;
+    case'exportFiltered':exportCsv(filtered());break;
+    case'copyCsv':{const b=$('#csvbox');b.select();try{await navigator.clipboard.writeText(b.value);toast('Copied')}catch(e){toast('Press and hold to copy the selected text')}break}
+  }
+});
+document.addEventListener('pointerover',ev=>{const t=ev.target.closest&&ev.target.closest('[data-tip]');if(t)showTip(t);else if(!(ev.target.closest&&ev.target.closest('.tip')))hideTip()});
+document.addEventListener('input',ev=>{
+  const k=ev.target.dataset&&ev.target.dataset.in;if(!k)return;
+  const h=S.hist,v=ev.target.value;
+  if(k==='hq'){h.q=v;renderHist()}
+  else if(k==='hfrom'){h.from=v;renderHist()}
+  else if(k==='hto'){h.to=v;renderHist()}
+  else if(k==='hmin'){h.min=v;renderHist()}
+  else if(k==='hmax'){h.max=v;renderHist()}
+  else if(k==='mq'){S.mq=v;const b=$('#mlist');if(b)b.innerHTML=merchantGroups()}
+});
+document.addEventListener('change',ev=>{
+  const tid=ev.target.id;
+  if(tid==='sdate'&&SH){SH.future=false;const w=$('#datewarn'),s=$('#ssave');if(w)w.hidden=!(ev.target.value>today());if(s)s.textContent=SH.id?'Save changes':'Save expense'}
+  if(tid==='smerch'&&SH&&!SH.id&&ev.target.value&&ev.target.value!=='__new__')applyMerchant(ev.target.value);
+  const nw=ev.target.dataset&&ev.target.dataset.new;
+  if(nw){const box=$('#'+nw);box.hidden=ev.target.value!=='__new__';if(!box.hidden)box.focus();return}
+  const k=ev.target.dataset&&ev.target.dataset.in;if(!k)return;const v=ev.target.value;
+  if(k==='pname')putProfile({name:v.trim().slice(0,40)},true);
+  else if(k==='pcur')putProfile({currency:v});
+});
+document.addEventListener('keydown',ev=>{
+  if(!sheetOpen())return;
+  if(ev.key==='Escape'){closeSheet();return}
+  if(!SH||ev.target.closest('input,textarea,select,button'))return;
+  if(/^[0-9.]$/.test(ev.key)){keyEntry(ev.key);ev.preventDefault()}
+  else if(ev.key==='Backspace'){keyEntry('back');ev.preventDefault()}
+  else if(ev.key==='Enter'){saveExpense();ev.preventDefault()}
+});
+
+/* ---------- boot ---------- */
+async function boot(){
+  const last=lsGet('et.last');if(last)S.uid=last;
+  loadCache();applyTheme();render();
+  const cl=window.claude;if(!cl||!cl.use){setStatus();return}
+  let user=null,db=null;
+  try{[user,db]=await Promise.all([cl.use('user'),cl.use('db')])}catch(e){}
+  let uid=null,name='';
+  if(user){try{uid=await user.id();name=(await user.me()).name||''}catch(e){}}
+  if(uid){
+    if(uid!==S.uid){S.uid=uid;S.exp={};S.pending={e:{},p:false};S.profile=normProfile();loadCache()}
+    S.uid=uid;lsSet('et.last',uid);
+  }
+  if(!S.profile.name&&name){S.profile.name=name;S.profile.updatedAt=Date.now();S.pending.p=true}
+  DB=db;S.hasDb=!!(db&&uid);
+  applyTheme();save();render();
+  if(S.hasDb)connect();
+  setStatus();
+  if(!S.hasDb)runRecurring();
+}
+boot();
+</script>

@@ -1,0 +1,151 @@
+/* ---------- merchants & payment methods manager ---------- */
+let SL=null,SR=null;
+const payList=()=>[...new Set(S.profile.payments.concat(live().map(x=>x.payment).filter(Boolean)))];
+const lastFor=m=>live().filter(x=>x.merchant===m).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt)[0];
+function merchantIndex(){
+  const latest={},used={},cc={};
+  live().forEach(e=>{if(!e.merchant)return;(used[e.cat]=used[e.cat]||new Set()).add(e.merchant);
+    (cc[e.merchant]=cc[e.merchant]||{})[e.cat]=(cc[e.merchant][e.cat]||0)+1;
+    const l=latest[e.merchant];if(!l||e.date>l.date||(e.date===l.date&&e.createdAt>l.createdAt))latest[e.merchant]=e});
+  const prim=n=>{const m=S.profile.mcat[n];if(m&&S.profile.cats.some(c=>c.id===m))return m;if(!latest[n])return null;const c=cc[n];let best=latest[n].cat,bc=c[best]||0;
+    Object.keys(c).forEach(k=>{if(c[k]>bc){best=k;bc=c[k]}});return best};
+  return{prim,forCat:cid=>merchantList().filter(n=>(used[cid]&&used[cid].has(n))||prim(n)===cid)};
+}
+function refreshMerchantUI(sel){
+  const s=$('#smerch');if(!s||!SH)return;
+  const idx=merchantIndex(),cat=catOf(SH.cat);
+  let names=SH.allM?merchantList():idx.forCat(SH.cat);
+  if(sel&&!names.includes(sel))names=names.concat(sel);
+  const cur=sel!==undefined?sel:s.value;
+  s.innerHTML='<option value="">None</option>'+names.map(m=>'<option'+(m===cur?' selected':'')+'>'+esc(m)+'</option>').join('')+
+    '<option value="__new__"'+(cur==='__new__'?' selected':'')+'>+ Add new…</option>';
+  const nb=$('#smnew');if(nb&&s.value!=='__new__')nb.hidden=true;
+  const cnt={};live().forEach(e=>{if(e.merchant&&e.cat===SH.cat)cnt[e.merchant]=(cnt[e.merchant]||0)+1});
+  const fq=SH.id?[]:Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x[0]);
+  const fb=$('#mfreqbox'),fc=$('#mfreq');
+  if(fb&&fc){fb.hidden=!fq.length;fc.innerHTML=fq.map(m=>'<button class="chip" data-act="pickMerch" data-name="'+esc(m)+'" aria-pressed="'+(m===cur)+'">'+esc(m)+'</button>').join('')}
+  const h=$('#mhint');
+  if(h)h.innerHTML=SH.allM?'Showing all merchants · <button class="ulink" data-act="mAll">Only '+esc(cat.name)+'</button>':
+    'Showing '+esc(cat.name)+' merchants · <button class="ulink" data-act="mAll">Show all</button>';
+}
+function applyMerchant(name){
+  if(!SH)return;const idx=merchantIndex();
+  if(!idx.forCat(SH.cat).includes(name)){const p=idx.prim(name);if(p){SH.cat=p;const cc=$('#cchips');if(cc)cc.innerHTML=chipsHtml()}}
+  refreshMerchantUI(name);
+  const l=lastFor(name),p=$('#spay');
+  if(l&&p&&l.payment&&Array.from(p.options).some(o=>o.value===l.payment))p.value=l.payment;
+}
+function subHead(title,act,kind){return '<div class="row" style="margin-bottom:12px"><button class="iconbtn" data-act="sub" data-t="" aria-label="Back to profile">'+ic('back')+'</button><div class="grow" style="font-weight:700;font-size:18px">'+title+'</div>'+
+  '<button class="btn" data-act="'+act+'" data-k="'+(kind||'')+'">'+ic('plus')+' New</button></div>'}
+function vList(kind){
+  if(kind==='merchant')return vMerchants();
+  const isM=kind==='merchant',names=isM?merchantList():payList(),title=isM?'Merchants':'Payment methods',cnt={},tot={};
+  live().forEach(e=>{const k=isM?e.merchant:e.payment;if(k){cnt[k]=(cnt[k]||0)+1;tot[k]=(tot[k]||0)+e.amount}});
+  return subHead(title,'newList',kind)+(names.length?'<div class="card list">'+names.map(n=>'<button class="link" data-act="editList" data-k="'+kind+'" data-name="'+esc(n)+'"><span class="grow">'+esc(n)+'</span>'+
+    '<span class="small muted num">'+(cnt[n]||0)+' · '+money(tot[n]||0)+'</span>'+ic('chev')+'</button>').join('')+'</div>':
+    '<div class="empty"><b>No '+title.toLowerCase()+' yet</b>They appear here as you add expenses.</div>')+
+    '<div class="small muted" style="margin-top:12px">Rename an entry to match another one and the two merge. Deleting removes the name from past expenses too.</div>';
+}
+function merchantGroups(){
+  const idx=merchantIndex(),q=(S.mq||'').trim().toLowerCase(),cnt={},tot={};
+  live().forEach(e=>{if(e.merchant){cnt[e.merchant]=(cnt[e.merchant]||0)+1;tot[e.merchant]=(tot[e.merchant]||0)+e.amount}});
+  const names=merchantList().filter(n=>!q||n.toLowerCase().includes(q));
+  const groups=S.profile.cats.map(c=>({c,items:names.filter(n=>idx.prim(n)===c.id)})).concat([{c:null,items:names.filter(n=>!idx.prim(n))}]).filter(g=>g.items.length);
+  if(!groups.length)return '<div class="empty"><b>'+(q?'No matches':'No merchants yet')+'</b>'+(q?'Try a different search.':'They appear here as you add expenses.')+'</div>';
+  return groups.map(g=>'<h2 style="display:flex;align-items:center;gap:8px">'+(g.c?'<span class="dot" style="background:var(--c'+g.c.color+')"></span>'+esc(g.c.name):'No category')+
+    '<span class="muted" style="margin-left:auto;text-transform:none;letter-spacing:0">'+g.items.length+'</span></h2><div class="card list">'+
+    g.items.map(n=>'<button class="link" data-act="editList" data-k="merchant" data-name="'+esc(n)+'"><span class="grow" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(n)+'</span>'+
+      '<span class="small muted num">'+(cnt[n]||0)+' · '+money(tot[n]||0)+'</span>'+ic('chev')+'</button>').join('')+'</div>').join('');
+}
+function vMerchants(){
+  return subHead('Merchants','newList','merchant')+'<input id="mq" type="text" placeholder="Search merchants" aria-label="Search merchants" value="'+esc(S.mq||'')+'" data-in="mq">'+
+    '<div id="mlist">'+merchantGroups()+'</div><div class="small muted" style="margin-top:12px">Each merchant belongs to a category, so the add screen only lists the ones that fit. Rename to merge two entries. Deleting removes the name from past expenses too.</div>';
+}
+function openListItem(kind,old){
+  SL={kind,old:old||null};const isM=kind==='merchant';
+  let catHtml='';
+  if(isM){const cur=old?merchantIndex().prim(old):null,sel=cur||'other';
+    catHtml='<label class="f">Category<select id="lcat">'+S.profile.cats.map(c=>'<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'+
+      (old?'<label class="row small fg2" style="gap:10px"><input id="lmove" type="checkbox" style="width:20px;height:20px"><span>Also move its past expenses to this category</span></label>':'')}
+  $('#layer').innerHTML='<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="'+(isM?'Merchant':'Payment method')+'">'+
+    '<div class="hd"><span>'+(old?'Edit ':'New ')+(isM?'merchant':'payment method')+'</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
+    '<div class="sc"><label class="f">Name<input id="lname" type="text" maxlength="60" value="'+esc(old||'')+'"></label>'+catHtml+
+    '<button class="btn block" data-act="listSave">Save</button>'+
+    (old?'<div id="ldel"><button class="btn danger block" data-act="listDelAsk">'+ic('trash')+' Delete</button></div>':'')+'<div style="height:12px"></div></div></div></div>';
+}
+function renameEverywhere(kind,from,to){
+  const f=kind==='merchant'?'merchant':'payment',now=Date.now();
+  Object.values(S.exp).forEach(e=>{if(!e.deleted&&e[f]===from){S.exp[e.id]=Object.assign({},e,{[f]:to,updatedAt:now});S.pending.e[e.id]=1}});
+}
+function saveListItem(){
+  const name=$('#lname').value.trim();if(!name){toast('Enter a name.');return}
+  const kind=SL.kind,key=kind==='merchant'?'merchants':'payments',all=kind==='merchant'?merchantList():payList();
+  const ex=all.find(x=>x.toLowerCase()===name.toLowerCase()&&x!==SL.old),target=ex||name;
+  const list=S.profile[key].filter(x=>x!==SL.old);if(!list.includes(target))list.push(target);
+  if(SL.old&&SL.old!==target)renameEverywhere(kind,SL.old,target);
+  const patch={[key]:list};
+  if(kind==='merchant'){
+    const cat=$('#lcat').value,mc=Object.assign({},S.profile.mcat);
+    if(SL.old&&SL.old!==target)delete mc[SL.old];
+    mc[target]=cat;patch.mcat=mc;
+    const mv=$('#lmove');
+    if(mv&&mv.checked){const now=Date.now();Object.values(S.exp).forEach(e=>{if(!e.deleted&&e.merchant===target&&e.cat!==cat){S.exp[e.id]=Object.assign({},e,{cat,updatedAt:now});S.pending.e[e.id]=1}})}
+  }
+  const merged=ex&&SL.old;putProfile(patch);closeSheet();toast(merged?'Merged into '+target:'Saved');
+}
+function deleteListItem(){
+  const kind=SL.kind,key=kind==='merchant'?'merchants':'payments';
+  if(kind==='pay'&&payList().length<=1){toast('Keep at least one payment method.');return}
+  renameEverywhere(kind,SL.old,'');
+  const patch={[key]:S.profile[key].filter(x=>x!==SL.old)};
+  if(kind==='merchant'){const mc=Object.assign({},S.profile.mcat);delete mc[SL.old];patch.mcat=mc}
+  putProfile(patch);closeSheet();toast('Deleted');
+}
+
+/* ---------- recurring expenses ---------- */
+function vRecur(){
+  const rs=S.profile.recurring;
+  return subHead('Recurring','newRecur')+(rs.length?'<div class="card list">'+rs.map(r=>{const c=catOf(r.cat);
+    return '<button class="link" data-act="editRecur" data-id="'+r.id+'"><span class="cico" style="background:var(--c'+c.color+')">'+ic(c.icon)+'</span>'+
+    '<span class="grow"><div style="font-weight:600">'+esc(r.merchant||c.name)+'</div><div class="small fg2">Day '+r.day+' of every month'+(r.payment?' · '+esc(r.payment):'')+'</div></span>'+
+    '<span class="num" style="font-weight:600">'+money(r.amount)+'</span></button>'}).join('')+'</div>':
+    '<div class="empty"><b>No recurring expenses</b>Add rent, subscriptions or bills once and they are recorded every month.</div>');
+}
+function openRecur(id){
+  const r=id?S.profile.recurring.find(x=>x.id===id):null;SR={id:id||null};
+  const days=Array.from({length:31},(_,i)=>'<option'+((r?r.day:1)===i+1?' selected':'')+'>'+(i+1)+'</option>').join('');
+  const cats=S.profile.cats.map(c=>'<option value="'+c.id+'"'+((r?r.cat:'bills')===c.id?' selected':'')+'>'+esc(c.name)+'</option>').join('');
+  const pays='<option value="">Not set</option>'+payList().map(p=>'<option'+(r&&r.payment===p?' selected':'')+'>'+esc(p)+'</option>').join('');
+  $('#layer').innerHTML='<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="Recurring expense">'+
+    '<div class="hd"><span>'+(r?'Edit recurring':'New recurring')+'</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
+    '<div class="sc"><label class="f">Amount<input id="rAmt" type="number" inputmode="decimal" min="0" value="'+(r?r.amount:'')+'" placeholder="0"></label>'+
+    '<div class="two"><label class="f">Day of month<select id="rDay">'+days+'</select></label><label class="f">Category<select id="rCat">'+cats+'</select></label></div>'+
+    '<div class="two"><label class="f">Merchant<input id="rMer" type="text" maxlength="60" value="'+esc(r?r.merchant:'')+'" placeholder="Optional"></label><label class="f">Payment method<select id="rPay">'+pays+'</select></label></div>'+
+    '<label class="f">Note<input id="rNote" type="text" maxlength="140" value="'+esc(r?r.note:'')+'" placeholder="Optional"></label>'+
+    '<div class="small fg2">Recorded automatically on that day each month, and on the last day in shorter months. You can edit or delete any entry later.</div>'+
+    '<button class="btn block" data-act="recurSave">Save</button>'+
+    (r?'<div id="rdel"><button class="btn danger block" data-act="recurDelAsk">'+ic('trash')+' Delete recurring</button></div>':'')+'<div style="height:12px"></div></div></div></div>';
+}
+function saveRecur(){
+  const amount=round2(parseFloat($('#rAmt').value));if(!(amount>0)){toast('Enter an amount.');return}
+  const old=SR.id?S.profile.recurring.find(x=>x.id===SR.id):null;
+  const rec={id:old?old.id:'t'+Date.now().toString(36),amount,day:+$('#rDay').value,cat:$('#rCat').value,merchant:$('#rMer').value.trim(),
+    payment:$('#rPay').value,note:$('#rNote').value.trim(),last:old?old.last:prevKey(mkey(today()))};
+  const list=old?S.profile.recurring.map(x=>x.id===rec.id?rec:x):S.profile.recurring.concat(rec);
+  putProfile({recurring:list});closeSheet();runRecurring();toast('Recurring expense saved');
+}
+function runRecurring(){
+  if(S.hasDb&&!S.reached&&!S.unreach)return;
+  const t=today(),cur=mkey(t),recs=S.profile.recurring||[];if(!recs.length)return;
+  let made=0,changed=false;
+  const out=recs.map(r=>{
+    let last=r.last||prevKey(cur),m=nextKey(last);
+    while(m<=cur){
+      const date=m+'-'+pad2(Math.min(r.day,daysIn(m)));if(date>t)break;
+      const id='r'+r.id+m.replace('-','');
+      if(!S.exp[id]){const now=Date.now();S.exp[id]={id,amount:r.amount,cat:r.cat,date,merchant:r.merchant||'',payment:r.payment||'',note:r.note||'',createdAt:now,updatedAt:now,recurring:r.id};S.pending.e[id]=1;made++}
+      last=m;m=nextKey(m);changed=true}
+    return last===r.last?r:Object.assign({},r,{last})});
+  if(changed){S.profile.recurring=out;S.profile.updatedAt=Date.now();S.pending.p=true;save();render();setStatus();flush()}
+  if(made)toast(made+' recurring expense'+(made===1?'':'s')+' added');
+}

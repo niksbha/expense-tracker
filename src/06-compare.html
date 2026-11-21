@@ -1,0 +1,100 @@
+/* ---------- compare: this month vs last month vs historic average ---------- */
+const cumOf=a=>{let c=0;return a.map(v=>c+=v)};
+const prevKey=k=>{let y=+k.slice(0,4),m=+k.slice(5)-1;if(m===0){m=12;y--}return y+'-'+pad2(m)};
+function compareData(){
+  const t=today(),k=mkey(t),day=+t.slice(8),n=daysIn(k),pk=prevKey(k);
+  const daily={},catM={};
+  live().forEach(e=>{const m=mkey(e.date);if(!daily[m])daily[m]=Array(daysIn(m)).fill(0);daily[m][+e.date.slice(8)-1]+=e.amount;
+    if(!catM[m])catM[m]={};catM[m][e.cat]=(catM[m][e.cat]||0)+e.amount});
+  const first=Object.keys(daily).sort()[0],past=[];
+  if(first&&first<k){let m=first;while(m<k){past.push(m);m=nextKey(m)}}
+  const zero=m=>Array(daysIn(m)).fill(0);
+  const cum={};past.concat([k]).forEach(m=>{cum[m]=cumOf(daily[m]||zero(m))});
+  const at=(m,i)=>cum[m][Math.min(i,cum[m].length-1)];
+  const cur=cum[k].slice(0,day);
+  const prev=pk in cum?cum[pk]:(daily[pk]?cumOf(daily[pk]):null);
+  const avg=past.length?Array.from({length:n},(_,i)=>past.reduce((s,m)=>s+at(m,i),0)/past.length):null;
+  const catRows=S.profile.cats.map(c=>{
+    const thisV=(catM[k]||{})[c.id]||0;
+    let lastV=0;live().forEach(e=>{if(e.cat===c.id&&mkey(e.date)===pk&&+e.date.slice(8)<=day)lastV+=e.amount});
+    const avgV=past.length?past.reduce((s,m)=>s+((catM[m]||{})[c.id]||0),0)/past.length:null;
+    return{c,thisV,lastV,avgV}}).filter(r=>r.thisV>0||r.lastV>0||r.avgV>0).sort((a,b)=>b.thisV-a.thisV||(b.avgV||0)-(a.avgV||0));
+  return{t,k,day,n,pk,daily,past,cur,prev,avg,catRows,
+    mtd:cur[day-1]||0,lastMtd:prev?prev[Math.min(day,prev.length)-1]:0,avgMtd:avg?avg[day-1]:null,
+    avgMonth:past.length?past.reduce((s,m)=>s+cum[m][cum[m].length-1],0)/past.length:null,
+    totals:m=>(daily[m]||[]).reduce((s,v)=>s+v,0)};
+}
+function nextKey(k){let y=+k.slice(0,4),m=+k.slice(5)+1;if(m===13){m=1;y++}return y+'-'+pad2(m)}
+function deltaHtml(cur,base){
+  if(!(base>0))return '<span class="muted">no data</span>';
+  const d=cur-base,p=Math.abs(Math.round(d/base*100));
+  if(Math.abs(d)<0.5)return '<span class="fg2" style="font-weight:600">same</span>';
+  return '<span style="font-weight:600;color:'+(d>0?'var(--warn)':'var(--good)')+'">'+(d>0?'↑ ':'↓ ')+p+'% '+(d>0?'higher':'lower')+'</span>';
+}
+function groupSum(list,fn){const m={};list.forEach(e=>{const k=fn(e);m[k]=(m[k]||0)+e.amount});
+  return Object.entries(m).map(([name,v])=>({name,v})).sort((a,b)=>b.v-a.v)}
+function shareList(rows,total){return rows.map(r=>'<div><div class="row small" style="gap:8px"><span class="grow" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.name)+
+  '</span><span class="num fg2">'+Math.round(r.v/total*100)+'%</span><span class="num" style="min-width:76px;text-align:right;font-weight:600">'+money(r.v)+
+  '</span></div><div class="bar" style="margin-top:6px"><i style="width:'+(r.v/total*100).toFixed(1)+'%"></i></div></div>').join('')}
+function lineChart(D){
+  const W=340,H=190,ml=44,mr=10,mt=14,mb=22,pw=W-ml-mr,ph=H-mt-mb,n=D.n;
+  const max=niceMax(Math.max.apply(null,[0].concat(D.cur,D.prev||[],D.avg||[])));
+  const X=i=>ml+(n<2?0:i/(n-1)*pw),Y=v=>mt+ph-v/max*ph;
+  const path=(a,len)=>a.slice(0,len).map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  let g='',x='',ln='',hit='';
+  [0,.5,1].forEach(t=>{const y=mt+ph-t*ph;g+='<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)"/>'+
+    '<text x="'+(ml-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="var(--muted)">'+esc(t===0?'0':compact(max*t))+'</text>'});
+  for(let i=0;i<n;i++)if(i===0||i%5===4)x+='<text x="'+X(i)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--muted)">'+(i+1)+'</text>';
+  const st=c=>'fill="none" stroke="var('+c+')" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+  if(D.avg)ln+='<path d="'+path(D.avg,n)+'" '+st('--c2')+'/>';
+  if(D.prev)ln+='<path d="'+path(D.prev,Math.min(n,D.prev.length))+'" '+st('--c1')+'/>';
+  ln+='<path d="'+path(D.cur,D.day)+'" '+st('--c0')+'/>';
+  ln+='<circle cx="'+X(D.day-1)+'" cy="'+Y(D.cur[D.day-1])+'" r="5" fill="var(--c0)" stroke="var(--surface)" stroke-width="2"/>';
+  const sw=n<2?pw:pw/(n-1);
+  for(let i=0;i<n;i++){
+    const tip='Day '+(i+1)+(i<D.day?'\nThis month  '+money(D.cur[i]):'')+(D.prev?'\nLast month  '+money(D.prev[Math.min(i,D.prev.length-1)]):'')+(D.avg?'\nAverage  '+money(D.avg[i]):'');
+    hit+='<rect x="'+(X(i)-sw/2)+'" y="'+mt+'" width="'+sw+'" height="'+ph+'" fill="transparent" data-tip="'+esc(tip)+'"/>'}
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Cumulative spending by day of month">'+g+ln+x+hit+'</svg>';
+}
+function monthsChart(keys,vals,avg){
+  const W=340,H=176,ml=40,mr=6,mt=16,mb=22,n=keys.length,pw=W-ml-mr,ph=H-mt-mb;
+  const max=niceMax(Math.max.apply(null,vals.concat([avg||0,0]))),slot=pw/n,bw=Math.min(24,slot-4),Y=v=>mt+ph-v/max*ph;
+  let g='',b='',x='',hit='';
+  [0,.5,1].forEach(t=>{const y=mt+ph-t*ph;g+='<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)"/>'+
+    '<text x="'+(ml-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="var(--muted)">'+esc(t===0?'0':compact(max*t))+'</text>'});
+  keys.forEach((k,i)=>{const cx=ml+slot*i+slot/2,h=vals[i]/max*ph,y=mt+ph-h,last=i===n-1;
+    if(h>0){const r=Math.min(4,h);b+='<path d="M'+(cx-bw/2)+' '+(mt+ph)+'V'+(y+r)+'a'+r+' '+r+' 0 0 1 '+r+' -'+r+'h'+(bw-2*r)+'a'+r+' '+r+' 0 0 1 '+r+' '+r+'V'+(mt+ph)+'z" fill="var(--accent)"'+(last?'':' fill-opacity=".4"')+'/>'}
+    if(n<=8||i%2===(n-1)%2)x+='<text x="'+cx+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--muted)">'+MONTHS[+k.slice(5)-1].slice(0,3)+'</text>';
+    hit+='<rect x="'+(cx-slot/2)+'" y="'+mt+'" width="'+slot+'" height="'+ph+'" fill="transparent" data-tip="'+esc(monthName(k)+(last?' (so far)':'')+'\n'+money(vals[i]))+'"/>'});
+  if(avg!=null)b+='<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+Y(avg)+'" y2="'+Y(avg)+'" stroke="var(--c2)" stroke-width="2" stroke-linecap="round"/>';
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Monthly spending with historic average line">'+g+b+x+hit+'</svg>';
+}
+function vCompare(){
+  if(!live().length)return '<div class="empty"><b>No expenses yet</b>Tap + to add your first expense. Comparisons start once you have a previous month.</div>';
+  const D=compareData(),pN=D.past.length,key=(c,l)=>'<span class="row small fg2" style="gap:6px"><i style="display:inline-block;width:16px;height:3px;border-radius:2px;background:var('+c+')"></i>'+l+'</span>';
+  let h='<div class="card stack"><div><div class="small fg2">Spent so far in '+MONTHS[+D.k.slice(5)-1]+' (day 1 to '+D.day+')</div><div class="hero num">'+money(D.mtd)+'</div></div>';
+  h+='<div class="stats"><div class="stat"><div class="v num">'+(D.prev?money(D.lastMtd):'—')+'</div><div class="l">Last month, same days</div><div class="small" style="margin-top:4px">'+(D.prev?deltaHtml(D.mtd,D.lastMtd):'<span class="muted">no data</span>')+'</div></div>'+
+    '<div class="stat"><div class="v num">'+(D.avg?money(D.avgMtd):'—')+'</div><div class="l">Your average, same days</div><div class="small" style="margin-top:4px">'+(D.avg?deltaHtml(D.mtd,D.avgMtd):'<span class="muted">no data</span>')+'</div></div></div></div>';
+  const proj=D.avg?Math.max(D.mtd,D.mtd+(D.avgMonth-D.avgMtd)):D.mtd/D.day*D.n;
+  h+='<div class="card" style="margin-top:12px"><div class="row"><div class="grow"><div class="small fg2">On pace for the month</div><div class="num" style="font-size:22px;font-weight:650">'+money(proj)+'</div></div>'+
+    '<div class="small" style="text-align:right">'+(D.avgMonth!=null?deltaHtml(proj,D.avgMonth)+'<div class="fg2 num">vs average month '+money(D.avgMonth)+'</div>':'<span class="muted">Needs a previous month</span>')+'</div></div></div>';
+  if(!pN)h+='<div class="small fg2" style="margin-top:12px">Comparisons fill in once you have a full previous month of expenses.</div>';
+  h+='<h2>Month so far</h2><div class="card stack"><div class="chips" style="gap:14px">'+key('--c0','This month')+(D.prev?key('--c1','Last month'):'')+(D.avg?key('--c2','Average of '+pN+' month'+(pN===1?'':'s')):'')+'</div>'+
+    '<div class="small fg2">Running total by day of the month.</div><div class="chartbox">'+lineChart(D)+'</div></div>';
+  const keys=[];let kk=D.k;for(let i=0;i<12;i++){keys.unshift(kk);kk=prevKey(kk)}
+  const first=Object.keys(D.daily).sort()[0],shown=keys.filter(m=>m>=first);
+  const vals=shown.map(m=>D.totals(m));
+  h+='<h2>Monthly totals</h2><div class="card stack">'+(D.avgMonth!=null?'<div class="chips" style="gap:14px">'+key('--c2','Average month: '+money(D.avgMonth))+'</div>':'')+
+    '<div class="chartbox">'+monthsChart(shown,vals,D.avgMonth)+'</div>'+
+    '<details><summary class="small fg2" style="cursor:pointer;min-height:32px">View as table</summary><table class="small num" style="width:100%;border-collapse:collapse">'+
+    shown.map((m,i)=>'<tr><td class="fg2" style="padding:4px 0">'+monthName(m)+'</td><td style="text-align:right">'+money(vals[i])+'</td></tr>').join('')+'</table></details></div>';
+  const cm=monthExp(D.k),ctot=sum(cm),mrows=groupSum(cm.filter(e=>e.merchant),e=>e.merchant).slice(0,5),prows=groupSum(cm,e=>e.payment||'Not set');
+  if(mrows.length)h+='<h2>Top merchants this month</h2><div class="card stack">'+shareList(mrows,ctot)+'</div>';
+  if(prows.length)h+='<h2>Payment methods this month</h2><div class="card stack">'+shareList(prows,ctot)+'</div>';
+  h+='<h2>By category</h2><div class="stack">'+(D.catRows.length?D.catRows.map(r=>
+    '<div class="card"><div class="row"><span class="cico" style="background:var(--c'+r.c.color+')">'+ic(r.c.icon)+'</span><span class="grow" style="font-weight:600">'+esc(r.c.name)+'</span><span class="num" style="font-weight:600">'+money(r.thisV)+'</span></div>'+
+    '<div class="small fg2" style="margin-top:10px;display:flex;flex-direction:column;gap:4px">'+
+    '<div style="display:flex;justify-content:space-between;gap:8px"><span>Last month, same days · <span class="num">'+money(r.lastV)+'</span></span>'+deltaHtml(r.thisV,r.lastV)+'</div>'+
+    (r.avgV!=null?'<div style="display:flex;justify-content:space-between;gap:8px"><span>Average month · <span class="num">'+money(r.avgV)+'</span></span><span class="muted">full month</span></div>':'')+'</div></div>').join(''):'<div class="muted small">No category spending to compare yet.</div>')+'</div>';
+  return h;
+}

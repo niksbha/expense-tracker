@@ -1,0 +1,85 @@
+/* ---------- history ---------- */
+function filtered(){
+  const h=S.hist,q=h.q.trim().toLowerCase();
+  return live().filter(e=>{
+    if(h.cat.length&&!h.cat.includes(e.cat))return false;
+    if(h.from&&e.date<h.from)return false;if(h.to&&e.date>h.to)return false;
+    if(h.pay.length&&!h.pay.includes(e.payment||''))return false;
+    if(h.min!==''&&e.amount<+h.min)return false;if(h.max!==''&&e.amount>+h.max)return false;
+    if(q&&!((e.merchant||'')+' '+(e.payment||'')+' '+(e.note||'')+' '+catOf(e.cat).name+' '+e.amount).toLowerCase().includes(q))return false;
+    return true}).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+}
+const filterCount=()=>{const h=S.hist;return(h.cat.length?1:0)+(h.pay.length?1:0)+(h.from||h.to?1:0)+(h.min!==''||h.max!==''?1:0)};
+function histSummary(list){return list.length+' expense'+(list.length===1?'':'s')+' · '+money(sum(list))}
+function histList(list){
+  if(!list.length)return live().length?'<div class="empty"><b>No matches</b>Try a different search or clear the filters.</div>':
+    '<div class="empty"><b>No expenses yet</b>Tap + to add your first expense.</div>';
+  let h='',m='',d='';const mt={},dt={};
+  const dc={};
+  list.forEach(e=>{mt[mkey(e.date)]=(mt[mkey(e.date)]||0)+e.amount;dt[e.date]=(dt[e.date]||0)+e.amount;dc[e.date]=(dc[e.date]||0)+1});
+  list.forEach(e=>{
+    if(mkey(e.date)!==m){m=mkey(e.date);d='';h+='<div class="mon"><span>'+monthName(m)+'</span><span class="small fg2 num">'+money(mt[m])+'</span></div>'}
+    if(e.date!==d&&mkey(e.date)===mkey(today())){d=e.date;
+      if(dc[d]>1)h+='<div class="dayh"><span>Day total · '+dc[d]+' expenses</span><span class="num">'+money(dt[d])+'</span></div>'}
+    h+=itemHtml(e,true)});
+  return h;
+}
+function renderHist(){const l=filtered();const s=$('#hsum'),b=$('#hlist');if(s)s.textContent=histSummary(l);if(b)b.innerHTML=histList(l)}
+function vHistory(){
+  const h=S.hist,l=filtered(),n=filterCount();
+  let o='<div class="row" style="margin-bottom:10px"><label class="grow" style="position:relative;display:block"><span class="muted" style="position:absolute;left:12px;top:12px">'+ic('search')+'</span>'+
+    '<input id="hq" type="text" placeholder="Search merchant, note or category" value="'+esc(h.q)+'" data-in="hq" style="padding-left:42px" aria-label="Search expenses"></label>'+
+    '<button class="iconbtn card" style="padding:0;position:relative" data-act="toggleFilters" aria-label="Filters" aria-expanded="'+h.open+'">'+ic('filter')+
+    (n?'<span style="position:absolute;top:4px;right:4px;background:var(--accent);color:var(--accent-fg);border-radius:99px;font-size:11px;min-width:16px;height:16px;display:grid;place-items:center">'+n+'</span>':'')+'</button></div>';
+  if(h.open){o+='<div class="card stack" style="margin-bottom:10px"><div class="two"><label class="f">From<input id="hfrom" type="date" value="'+h.from+'" data-in="hfrom"></label>'+
+    '<label class="f">To<input id="hto" type="date" value="'+h.to+'" data-in="hto"></label></div>'+
+    '<div class="two"><label class="f">Min amount<input id="hmin" type="number" inputmode="decimal" min="0" value="'+h.min+'" data-in="hmin"></label>'+
+    '<label class="f">Max amount<input id="hmax" type="number" inputmode="decimal" min="0" value="'+h.max+'" data-in="hmax"></label></div>'+
+    '<div class="chips">'+S.profile.cats.map(c=>'<button class="chip" data-act="hcat" data-id="'+c.id+'" aria-pressed="'+h.cat.includes(c.id)+'"><span class="dot" style="background:var(--c'+c.color+')"></span>'+esc(c.name)+'</button>').join('')+'</div>'+
+    '<div class="f"><span>Payment method</span><div class="chips">'+payList().map(p=>'<button class="chip" data-act="hpay" data-name="'+esc(p)+'" aria-pressed="'+h.pay.includes(p)+'">'+esc(p)+'</button>').join('')+'</div></div>'+
+    '<button class="btn sec" data-act="clearFilters">Clear filters</button></div>'}
+  o+='<div class="row small fg2" style="justify-content:space-between"><span id="hsum">'+histSummary(l)+'</span>'+
+    '<button class="row" style="color:var(--accent);font-weight:600;min-height:36px" data-act="exportFiltered">'+ic('download')+' Export CSV</button></div><div id="hlist">'+histList(l)+'</div>';
+  return o;
+}
+
+/* ---------- profile ---------- */
+function confirmBox(id,text,label){
+  return S.confirm===id?'<div class="confirm"><div>'+text+'</div><div class="two"><button class="btn sec" data-act="confirmNo">Cancel</button><button class="btn danger" data-act="confirmYes" data-id="'+id+'">'+label+'</button></div></div>':'';
+}
+function vProfile(){
+  const p=S.profile;
+  return '<div class="card stack"><label class="f">Name<input id="pname" type="text" value="'+esc(p.name)+'" placeholder="Your name" data-in="pname"></label>'+
+    '<label class="f">Currency<select id="pcur" data-in="pcur">'+CURRENCIES.map(c=>'<option'+(c===p.currency?' selected':'')+'>'+c+'</option>').join('')+'</select></label>'+
+    '<div class="f"><span>Appearance</span><div class="seg" role="group" aria-label="Appearance">'+['system','light','dark'].map(t=>'<button data-act="theme" data-v="'+t+'" aria-pressed="'+(p.theme===t)+'">'+t[0].toUpperCase()+t.slice(1)+'</button>').join('')+'</div></div></div>'+
+    '<h2>Manage</h2><div class="card list">'+
+    '<button class="link" data-act="sub" data-t="cats"><span class="grow">Categories</span><span class="muted">'+p.cats.length+'</span>'+ic('chev')+'</button>'+
+    '<button class="link" data-act="sub" data-t="merchants"><span class="grow">Merchants</span><span class="muted">'+merchantList().length+'</span>'+ic('chev')+'</button>'+
+    '<button class="link" data-act="sub" data-t="pays"><span class="grow">Payment methods</span><span class="muted">'+payList().length+'</span>'+ic('chev')+'</button>'+
+    '<button class="link" data-act="sub" data-t="recur"><span class="grow">Recurring expenses</span><span class="muted">'+p.recurring.length+'</span>'+ic('chev')+'</button>'+
+    '<button class="link" data-act="exportAll"><span class="grow">Export all expenses as CSV</span>'+ic('download')+'</button></div>'+
+    '<h2>Sync</h2><div class="card small fg2">Your expenses save on this device first and sync to your other signed-in devices when you are online. If two devices edit the same expense, the most recent change wins.</div>'+
+    '<h2>Data</h2><div class="stack">'+
+    '<button class="btn sec block" data-act="askWipeDevice">Clear data on this device</button>'+confirmBox('device','Removes the local copy on this device. Your cloud data stays and reloads from there.','Clear device')+
+    '<button class="btn danger block" data-act="askWipe">Delete all expenses</button>'+confirmBox('wipe','This permanently deletes every expense on all your devices. Categories and budgets are kept.','Delete expenses')+
+    '<button class="btn danger block" data-act="askAccount">Delete account data</button>'+confirmBox('account','This permanently deletes all expenses, categories, budgets and settings from every device. It cannot be undone.','Delete everything')+'</div>'+
+    '<div class="small muted" style="margin-top:14px">Sign-in and sign-out are handled by your Claude account.</div>';
+}
+function vCats(){
+  return '<div class="row" style="margin-bottom:12px"><button class="iconbtn" data-act="sub" data-t="" aria-label="Back to profile">'+ic('back')+'</button><div class="grow" style="font-weight:700;font-size:18px">Categories</div>'+
+    '<button class="btn" data-act="newCat">'+ic('plus')+' New</button></div><div class="card list">'+
+    S.profile.cats.map(c=>'<button class="link" data-act="editCat" data-id="'+c.id+'"><span class="cico" style="background:var(--c'+c.color+')">'+ic(c.icon)+'</span><span class="grow">'+esc(c.name)+'</span>'+
+      (DEFAULT_IDS.includes(c.id)?'<span class="small muted">Default</span>':'')+ic('chev')+'</button>').join('')+'</div>';
+}
+
+/* ---------- shell ---------- */
+function tabsHtml(){
+  const t=(id,icn,l)=>'<button class="tab" data-act="tab" data-t="'+id+'"'+(S.tab===id&&!S.sub?' aria-current="page"':'')+'>'+ic(icn)+l+'</button>';
+  return t('home','chart','Home')+t('history','list','History')+
+    '<button class="fab" data-act="add" aria-label="Add expense">'+ic('plus')+'</button>'+t('compare','trend','Compare')+t('profile','user','Profile');
+}
+function render(){
+  const subs={cats:vCats,merchants:()=>vList('merchant'),pays:()=>vList('pay'),recur:vRecur};
+  const v=subs[S.sub]||({home:vHome,history:vHistory,compare:vCompare,profile:vProfile})[S.tab];
+  const y=scrollY;$('#view').innerHTML=v();$('#tabs').innerHTML=tabsHtml();setStatus();scrollTo(0,y);
+}

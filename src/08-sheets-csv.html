@@ -1,0 +1,124 @@
+/* ---------- toast + tooltip ---------- */
+let toastT=null,UNDO=null;
+function toast(msg,undo){const t=$('#toast');UNDO=undo||null;
+  t.innerHTML='<span>'+esc(msg)+'</span>'+(undo?'<button data-act="undo" style="margin-left:14px;font-weight:700;text-decoration:underline;min-height:32px;padding:0 6px">Undo</button>':'');
+  t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true;UNDO=null},undo?6000:3200)}
+function hideTip(){document.querySelectorAll('.tip').forEach(t=>t.remove())}
+function showTip(el){hideTip();const box=el.closest('.chartbox');if(!box)return;
+  const t=document.createElement('div');t.className='tip';t.textContent=el.dataset.tip;box.appendChild(t);
+  const r=el.getBoundingClientRect(),b=box.getBoundingClientRect();
+  t.style.transform='translate(-50%,0)';t.style.top=Math.max(0,r.top-b.top+6)+'px';
+  const half=t.offsetWidth/2;t.style.left=Math.max(half,Math.min(b.width-half,r.left+r.width/2-b.left))+'px'}
+
+/* ---------- add / edit expense sheet ---------- */
+let SH=null;
+const sheetOpen=()=>!!$('#layer').firstChild;
+function closeSheet(){$('#layer').innerHTML='';SH=null;SC=null;SL=null;SR=null}
+function chipsHtml(){return S.profile.cats.map(c=>'<button class="chip" data-act="pickCat" data-id="'+c.id+'" aria-pressed="'+(SH.cat===c.id)+'">'+
+  '<span class="dot" style="background:var(--c'+c.color+')"></span>'+esc(c.name)+'</button>').join('')}
+function updateAmt(){
+  const a=$('#amt');if(!a)return;
+  a.innerHTML='<span class="cur">'+esc(curSym())+'</span>'+(SH.amt?esc(SH.amt):'<span class="muted">0</span>');
+  const s=$('#ssave');if(s)s.disabled=!(parseFloat(SH.amt)>0);
+}
+function openExpense(id){
+  const e=id?S.exp[id]:null;
+  SH={id:id||null,amt:e?String(e.amount):'',cat:e?e.cat:S.lastCat,del:false,allM:false};
+  const pays=S.profile.payments.slice();
+  if(e&&e.payment&&!pays.includes(e.payment))pays.push(e.payment);
+  const curPay=e?(e.payment||''):(pays.includes(S.lastPay)?S.lastPay:pays[0]);
+  const keys=['1','2','3','4','5','6','7','8','9','.','0','back'];
+  $('#layer').innerHTML='<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="'+(e?'Edit expense':'Add expense')+'">'+
+    '<div class="hd"><span>'+(e?'Edit expense':'Add expense')+'</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
+    '<div class="sc"><div class="amount num" id="amt" aria-live="polite"></div>'+
+    '<div class="chips" id="cchips" role="group" aria-label="Category">'+chipsHtml()+'</div>'+
+    '<div class="f" id="mfreqbox" hidden><span>Frequent merchants</span><div class="chips" id="mfreq"></div></div>'+
+    '<div class="two"><label class="f">Date<input id="sdate" type="date" value="'+(e?e.date:today())+'" max="2100-12-31"></label>'+
+    '<label class="f">Payment method<select id="spay" data-new="spnew">'+(e&&!e.payment?'<option value="" selected>Not set</option>':'')+
+      pays.map(p=>'<option'+(p===curPay?' selected':'')+'>'+esc(p)+'</option>').join('')+'<option value="__new__">+ Add new…</option></select></label></div>'+
+    '<div id="datewarn" class="alert warn" hidden>'+ic('warn')+'<span>This date is in the future. Check it before saving.</span></div>'+
+    '<input id="spnew" type="text" maxlength="30" placeholder="New payment method" aria-label="New payment method" hidden>'+
+    '<label class="f">Merchant<select id="smerch" data-new="smnew"></select></label><div class="small fg2" id="mhint"></div>'+
+    '<input id="smnew" type="text" maxlength="60" placeholder="New merchant name" aria-label="New merchant name" hidden>'+
+    '<label class="f">Note<input id="snote" type="text" maxlength="140" value="'+esc(e?e.note:'')+'" placeholder="Optional"></label>'+
+    (e?'<div id="delbox"><button class="btn danger block" data-act="delYes">'+ic('trash')+' Delete expense</button></div>':'')+'</div>'+
+    '<div class="pad">'+keys.map(k=>'<button data-act="key" data-k="'+k+'" aria-label="'+(k==='back'?'Backspace':k==='.'?'Decimal point':k)+'">'+(k==='back'?ic('backspace'):k)+'</button>').join('')+
+    '<button class="save" id="ssave" data-act="saveExp">'+(e?'Save changes':'Save expense')+'</button></div></div></div>';
+  updateAmt();refreshMerchantUI(e?e.merchant:'');
+}
+function keyEntry(k){
+  let a=SH.amt;
+  if(k==='back')a=a.slice(0,-1);
+  else if(k==='.'){if(!a)a='0.';else if(!a.includes('.'))a+='.'}
+  else{if(a==='0')a=k;else{const [i,d]=a.split('.');if(d!==undefined?d.length<2:i.length<9)a+=k}}
+  SH.amt=a;updateAmt();
+}
+const LV={'':0,warn:1,crit:2};
+function saveExpense(){
+  const amount=round2(parseFloat(SH.amt));if(!(amount>0))return;
+  const old=SH.id?S.exp[SH.id]:null;
+  const date=$('#sdate').value||today();
+  if(date>today()&&!SH.future){SH.future=true;$('#datewarn').hidden=false;$('#ssave').textContent='Save anyway';return}
+  const pick=(sel,nw,list)=>{const v=$('#'+sel).value;if(v!=='__new__')return v;
+    const t=$('#'+nw).value.trim();return list.find(x=>x.toLowerCase()===t.toLowerCase())||t};
+  const merchant=pick('smerch','smnew',merchantList()),payment=pick('spay','spnew',S.profile.payments);
+  const np={};
+  if(merchant&&!S.profile.merchants.includes(merchant))np.merchants=S.profile.merchants.concat(merchant);
+  if(payment&&!S.profile.payments.includes(payment))np.payments=S.profile.payments.concat(payment);
+  if(merchant&&!S.profile.mcat[merchant])np.mcat=Object.assign({},S.profile.mcat,{[merchant]:SH.cat});
+  if(np.merchants||np.payments||np.mcat)putProfile(np,true);
+  if(payment)S.lastPay=payment;
+  const rec={id:SH.id||newId(),amount,cat:SH.cat,date,merchant,payment,note:$('#snote').value.trim(),createdAt:old?old.createdAt:Date.now()};
+  const k=mkey(date),before={};budgetRows(k).forEach(r=>{before[r.key]=r.level});
+  putExpense(rec);closeSheet();
+  let msg=old?'Changes saved':'Expense saved';
+  budgetRows(k).forEach(r=>{if(LV[r.level]>LV[before[r.key]||'']){msg=r.level==='crit'?r.name+' is over its limit':r.name+' reached 80% of its limit'}});
+  toast(msg);
+}
+
+/* ---------- category sheet ---------- */
+let SC=null;
+function swatchHtml(){return Array.from({length:COLORS},(_,i)=>'<button class="sw" style="background:var(--c'+i+')" data-act="catColor" data-v="'+i+'" aria-label="Color '+(i+1)+'" aria-pressed="'+(SC.color===i)+'"></button>').join('')}
+function iconPickHtml(){return PICK_ICONS.map(n=>'<button data-act="catIcon" data-v="'+n+'" aria-label="'+n+'" aria-pressed="'+(SC.icon===n)+'">'+ic(n)+'</button>').join('')}
+function openCat(id){
+  const c=id?S.profile.cats.find(x=>x.id===id):null;
+  SC={id:id||null,name:c?c.name:'',icon:c?c.icon:'tag',color:c?c.color:9,del:false,custom:!c||!DEFAULT_IDS.includes(c.id)};
+  $('#layer').innerHTML='<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="Category">'+
+    '<div class="hd"><span>'+(c?'Edit category':'New category')+'</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
+    '<div class="sc"><label class="f">Name<input id="cname" type="text" maxlength="24" value="'+esc(SC.name)+'" placeholder="e.g. Pets"></label>'+
+    '<div class="f"><span>Icon</span><div class="icons" id="cicons">'+iconPickHtml()+'</div></div>'+
+    '<div class="f"><span>Color</span><div class="swatches" id="cswatch">'+swatchHtml()+'</div></div>'+
+    '<button class="btn block" data-act="catSave">Save category</button>'+
+    (c&&SC.custom?'<div id="cdel"><button class="btn danger block" data-act="catDelAsk">'+ic('trash')+' Delete category</button></div>':'')+
+    '<div style="height:12px"></div></div></div></div>';
+}
+function saveCat(){
+  const name=$('#cname').value.trim();if(!name){toast('Give the category a name.');return}
+  if(S.profile.cats.some(c=>c.id!==SC.id&&c.name.toLowerCase()===name.toLowerCase())){toast('You already have a category with that name.');return}
+  const cats=S.profile.cats.map(c=>Object.assign({},c));
+  if(SC.id){const c=cats.find(x=>x.id===SC.id);c.name=name;c.icon=SC.icon;c.color=SC.color}
+  else cats.push({id:'c'+Date.now().toString(36),name,icon:SC.icon,color:SC.color});
+  putProfile({cats});closeSheet();toast('Category saved');
+}
+function deleteCat(){
+  const id=SC.id,now=Date.now();
+  Object.values(S.exp).forEach(e=>{if(e.cat===id){S.exp[e.id]=Object.assign({},e,{cat:'other',updatedAt:now});S.pending.e[e.id]=1}});
+  const budget=JSON.parse(JSON.stringify(S.profile.budget));delete budget.cats[id];
+  putProfile({cats:S.profile.cats.filter(c=>c.id!==id),budget});closeSheet();toast('Category deleted');
+}
+
+/* ---------- CSV ---------- */
+const csvCell=v=>{v=String(v==null?'':v);return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+async function exportCsv(list){
+  if(!list.length){toast('No expenses to export yet.');return}
+  const rows=list.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.createdAt-b.createdAt);
+  const csv='﻿'+['Date,Amount,Currency,Category,Merchant,Payment method,Note'].concat(rows.map(e=>
+    [e.date,e.amount.toFixed(2),S.profile.currency,catOf(e.cat).name,e.merchant,e.payment,e.note].map(csvCell).join(','))).join('\r\n');
+  let dl=null;try{dl=window.claude&&claude.use?await claude.use('downloads'):null}catch(e){}
+  if(dl){try{await dl.save({filename:'expenses-'+today()+'.csv',data:csv});toast('CSV ready');return}catch(e){if(e&&e.code==='declined')return}}
+  $('#layer').innerHTML='<div class="scrim"><div class="sheet"><div class="hd"><span>Export CSV</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
+    '<div class="sc"><div class="small fg2">Downloads are not available here. Copy the text and paste it into a .csv file.</div>'+
+    '<textarea id="csvbox" readonly style="width:100%;height:220px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px;font-family:monospace;font-size:12px"></textarea>'+
+    '<button class="btn block" data-act="copyCsv">Copy CSV</button></div></div></div>';
+  $('#csvbox').value=csv;
+}
