@@ -32,6 +32,9 @@ function openExpense(id){
     '<div class="hd"><span>'+(e?'Edit expense':'Add expense')+'</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
     '<div class="sc"><div class="amount num" id="amt" aria-live="polite"></div>'+
     '<div class="chips" id="cchips" role="group" aria-label="Category">'+chipsHtml()+'</div>'+
+    (e?'':'<div class="f"><button class="ulink" data-act="togglePaste" style="text-align:left">Paste order message (Blinkit, Instamart, Myntra, BigBasket…)</button>'+
+      '<div id="pastebox" hidden><textarea id="ptext" data-in="ptext" rows="3" placeholder="Paste an order SMS, email text or bank alert" style="width:100%;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px;font:inherit"></textarea>'+
+      '<div class="small fg2" id="pnote" aria-live="polite"></div></div></div>')+
     '<div class="f" id="mfreqbox" hidden><span>Frequent merchants</span><div class="chips" id="mfreq"></div></div>'+
     '<div class="two"><label class="f">Date<input id="sdate" type="date" value="'+(e?e.date:today())+'" max="2100-12-31"></label>'+
     '<label class="f">Payment method<select id="spay" data-new="spnew">'+(e&&!e.payment?'<option value="" selected>Not set</option>':'')+

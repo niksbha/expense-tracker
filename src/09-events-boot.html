@@ -40,6 +40,9 @@ document.addEventListener('click',async ev=>{
     case'recurDelAsk':$('#rdel').innerHTML='<div class="confirm"><div>Delete this recurring expense? Entries already recorded stay.</div><div class="two"><button class="btn sec" data-act="recurDelNo">Cancel</button><button class="btn danger" data-act="recurDelYes">Delete</button></div></div>';break;
     case'recurDelNo':$('#rdel').innerHTML='<button class="btn danger block" data-act="recurDelAsk">'+ic('trash')+' Delete recurring</button>';break;
     case'recurDelYes':putProfile({recurring:S.profile.recurring.filter(x=>x.id!==SR.id)});closeSheet();toast('Recurring expense deleted');break;
+    case'togglePaste':{const b=$('#pastebox');if(b){b.hidden=!b.hidden;if(!b.hidden)$('#ptext').focus()}break}
+    case'preset':addPresets([d.name]);toast(d.name+' added');break;
+    case'presetAll':addPresets(PRESETS.map(p=>p.n));toast('Shopping apps added');break;
     case'newCat':openCat();break;
     case'editCat':openCat(d.id);break;
     case'catIcon':SC.icon=d.v;$('#cicons').innerHTML=iconPickHtml();break;
@@ -74,6 +77,7 @@ document.addEventListener('input',ev=>{
   else if(k==='hto'){h.to=v;renderHist()}
   else if(k==='hmin'){h.min=v;renderHist()}
   else if(k==='hmax'){h.max=v;renderHist()}
+  else if(k==='ptext'){applyPaste()}
   else if(k==='mq'){S.mq=v;const b=$('#mlist');if(b)b.innerHTML=merchantGroups()}
 });
 document.addEventListener('change',ev=>{

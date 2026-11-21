@@ -59,7 +59,7 @@ function merchantGroups(){
 }
 function vMerchants(){
   return subHead('Merchants','newList','merchant')+'<input id="mq" type="text" placeholder="Search merchants" aria-label="Search merchants" value="'+esc(S.mq||'')+'" data-in="mq">'+
-    '<div id="mlist">'+merchantGroups()+'</div><div class="small muted" style="margin-top:12px">Each merchant belongs to a category, so the add screen only lists the ones that fit. Rename to merge two entries. Deleting removes the name from past expenses too.</div>';
+    '<div style="height:12px"></div><div id="presets">'+vPresets()+'</div><div id="mlist">'+merchantGroups()+'</div><div class="small muted" style="margin-top:12px">Each merchant belongs to a category, so the add screen only lists the ones that fit. Rename to merge two entries. Deleting removes the name from past expenses too.</div>';
 }
 function openListItem(kind,old){
   SL={kind,old:old||null};const isM=kind==='merchant';

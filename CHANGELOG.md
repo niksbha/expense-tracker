@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0 — 2026-11-22
+- Popular shopping apps (Blinkit, Instamart, BigBasket, Zepto, Myntra, Amazon, Flipkart and more) one-tap add in Merchants, with categories
+- Paste order message in Add sheet: reads amount, merchant and date from order SMS, email or bank alert
+
 ## 0.8.0 — 2026-11-15 (web prototype, artifact v8)
 - Merchants linked to categories; manage merchants, payment methods, recurring in Profile
 - Merchant memory, undo delete, month-end projection, top merchants and payment split, payment filter
