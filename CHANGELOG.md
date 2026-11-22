@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.10.0 — 2026-11-23
+- Recently deleted screen (Profile): restore or delete forever; deleted expenses auto-removed after 30 days
+
 ## 0.9.0 — 2026-11-22
 - Popular shopping apps (Blinkit, Instamart, BigBasket, Zepto, Myntra, Amazon, Flipkart and more) one-tap add in Merchants, with categories
 - Paste order message in Add sheet: reads amount, merchant and date from order SMS, email or bank alert

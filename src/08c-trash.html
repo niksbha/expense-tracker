@@ -1,0 +1,32 @@
+/* ---------- recently deleted (kept 30 days) ---------- */
+const TRASH_DAYS=30,DAY_MS=86400000;
+const trashList=()=>Object.values(S.exp).filter(e=>e.deleted&&!e.purged).sort((a,b)=>b.updatedAt-a.updatedAt);
+function vTrash(){
+  const list=trashList(),now=Date.now();
+  return '<div class="row" style="margin-bottom:12px"><button class="iconbtn" data-act="sub" data-t="" aria-label="Back to profile">'+ic('back')+'</button><div class="grow" style="font-weight:700;font-size:18px">Recently deleted</div></div>'+
+    (list.length?'<div class="card list">'+list.map(e=>{const c=catOf(e.cat),left=Math.max(1,Math.ceil((e.updatedAt+TRASH_DAYS*DAY_MS-now)/DAY_MS)),ago=Math.floor((now-e.updatedAt)/DAY_MS);
+      return '<div style="padding:12px 14px;border-bottom:1px solid var(--line)"><div class="row" style="gap:12px"><span class="cico" style="background:var(--c'+c.color+')">'+ic(c.icon)+'</span>'+
+        '<span class="grow" style="min-width:0"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(e.merchant||c.name)+'</div>'+
+        '<div class="small fg2">'+esc(e.date)+' · deleted '+(ago?ago+' day'+(ago>1?'s':'')+' ago':'today')+' · '+left+' day'+(left>1?'s':'')+' left</div></span>'+
+        '<span class="amt num">'+money(e.amount)+'</span></div>'+
+        '<div class="two" style="margin-top:10px"><button class="btn sec" data-act="trashRestore" data-id="'+e.id+'">Restore</button>'+
+        '<button class="btn danger" data-act="trashForever" data-id="'+e.id+'">Delete forever</button></div></div>'}).join('')+'</div>':
+      '<div class="empty"><b>Nothing deleted</b>Deleted expenses appear here for '+TRASH_DAYS+' days.</div>')+
+    '<div class="small muted" style="margin-top:12px">Restoring brings the expense back on all your devices. After '+TRASH_DAYS+' days deleted expenses are removed for good.</div>';
+}
+function trashRestore(id){const e=S.exp[id];if(!e)return;const rec=Object.assign({},e);delete rec.deleted;delete rec.purged;putExpense(rec);toast('Expense restored')}
+async function trashErase(ids,quiet){
+  if(!ids.length)return true;
+  if(S.hasDb&&!S.net){if(!quiet)toast('Connect to the internet to delete for good.');return false}
+  for(const id of ids){
+    const e=S.exp[id];if(!e)continue;
+    if(e.recurring){S.exp[id]=Object.assign({},e,{purged:true,updatedAt:Date.now()});S.pending.e[id]=1;continue}
+    delete S.exp[id];delete S.pending.e[id];
+    if(DB&&S.uid){try{await expCol().doc(id).delete()}catch(err){}}
+  }
+  save();render();setStatus();flush();return true;
+}
+async function purgeTrash(){
+  const cut=Date.now()-TRASH_DAYS*DAY_MS;
+  await trashErase(trashList().filter(e=>e.updatedAt<cut).map(e=>e.id),true);
+}

@@ -57,6 +57,7 @@ function vProfile(){
     '<button class="link" data-act="sub" data-t="merchants"><span class="grow">Merchants</span><span class="muted">'+merchantList().length+'</span>'+ic('chev')+'</button>'+
     '<button class="link" data-act="sub" data-t="pays"><span class="grow">Payment methods</span><span class="muted">'+payList().length+'</span>'+ic('chev')+'</button>'+
     '<button class="link" data-act="sub" data-t="recur"><span class="grow">Recurring expenses</span><span class="muted">'+p.recurring.length+'</span>'+ic('chev')+'</button>'+
+    '<button class="link" data-act="sub" data-t="trash"><span class="grow">Recently deleted</span><span class="muted">'+trashList().length+'</span>'+ic('chev')+'</button>'+
     '<button class="link" data-act="exportAll"><span class="grow">Export all expenses as CSV</span>'+ic('download')+'</button></div>'+
     '<h2>Sync</h2><div class="card small fg2">Your expenses save on this device first and sync to your other signed-in devices when you are online. If two devices edit the same expense, the most recent change wins.</div>'+
     '<h2>Data</h2><div class="stack">'+
@@ -79,7 +80,7 @@ function tabsHtml(){
     '<button class="fab" data-act="add" aria-label="Add expense">'+ic('plus')+'</button>'+t('compare','trend','Compare')+t('profile','user','Profile');
 }
 function render(){
-  const subs={cats:vCats,merchants:()=>vList('merchant'),pays:()=>vList('pay'),recur:vRecur};
+  const subs={cats:vCats,merchants:()=>vList('merchant'),pays:()=>vList('pay'),recur:vRecur,trash:vTrash};
   const v=subs[S.sub]||({home:vHome,history:vHistory,compare:vCompare,profile:vProfile})[S.tab];
   const y=scrollY;$('#view').innerHTML=v();$('#tabs').innerHTML=tabsHtml();setStatus();scrollTo(0,y);
 }

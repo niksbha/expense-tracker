@@ -43,6 +43,8 @@ document.addEventListener('click',async ev=>{
     case'togglePaste':{const b=$('#pastebox');if(b){b.hidden=!b.hidden;if(!b.hidden)$('#ptext').focus()}break}
     case'preset':addPresets([d.name]);toast(d.name+' added');break;
     case'presetAll':addPresets(PRESETS.map(p=>p.n));toast('Shopping apps added');break;
+    case'trashRestore':trashRestore(d.id);break;
+    case'trashForever':trashErase([d.id]).then(ok=>{if(ok)toast('Deleted for good')});break;
     case'newCat':openCat();break;
     case'editCat':openCat(d.id);break;
     case'catIcon':SC.icon=d.v;$('#cicons').innerHTML=iconPickHtml();break;
@@ -118,6 +120,7 @@ async function boot(){
   if(S.hasDb)connect();
   setStatus();
   if(!S.hasDb)runRecurring();
+  setTimeout(purgeTrash,5000);
 }
 boot();
 </script>
