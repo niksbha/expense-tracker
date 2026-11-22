@@ -120,7 +120,7 @@ async function boot(){
     if(uid!==S.uid){S.uid=uid;S.exp={};S.pending={e:{},p:false};S.profile=normProfile();loadCache()}
     S.uid=uid;lsSet('et.last',uid);
   }
-  if(!S.profile.name&&name){S.profile.name=name;S.profile.updatedAt=Date.now();S.pending.p=true}
+  if(!S.profile.name&&name){S.profile.name=name;S.profile.updatedAt=Date.now();S.profile.fu.name=S.profile.updatedAt;S.pending.p=true}
   DB=db;S.hasDb=!!(db&&uid);
   applyTheme();save();render();
   if(S.hasDb)connect();

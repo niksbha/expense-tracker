@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0 — 2026-11-23
+- Fix (sync): profile settings now merge field by field, so a device with older data can no longer overwrite newer merchants, categories or channels
+- Home: donut legend shows full category names; daily chart stops at today; daily average in whole rupees
+- Compare: averages and pace in whole rupees; categories with no spending hidden; clearer wording
+- History filters: Category label added
+
 ## 0.12.0 — 2026-11-23
 - Import expenses from CSV (Profile): file picker or paste, preview, duplicate skipping, new categories/merchants/payments/channels created, one-tap Undo
 

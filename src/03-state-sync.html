@@ -1,6 +1,6 @@
 /* ---------- state ---------- */
 const DEFAULT_PAY=['Cash','UPI','Credit card','Debit card','Net banking','Wallet'];
-function newProfile(){return{name:'',currency:'INR',theme:'system',cats:JSON.parse(JSON.stringify(DEFAULT_CATS)),budget:{overall:null,cats:{}},payments:DEFAULT_PAY.slice(),merchants:[],mcat:{},mchan:{},recurring:[],updatedAt:0}}
+function newProfile(){return{name:'',currency:'INR',theme:'system',cats:JSON.parse(JSON.stringify(DEFAULT_CATS)),budget:{overall:null,cats:{}},payments:DEFAULT_PAY.slice(),merchants:[],mcat:{},mchan:{},recurring:[],fu:{},updatedAt:0}}
 function normProfile(p){
   const n=Object.assign(newProfile(),p||{});
   if(!Array.isArray(n.cats))n.cats=[];
@@ -14,6 +14,7 @@ function normProfile(p){
   if(!Array.isArray(n.recurring))n.recurring=[];
   if(!n.mcat||typeof n.mcat!=='object'||Array.isArray(n.mcat))n.mcat={};
   if(!n.mchan||typeof n.mchan!=='object'||Array.isArray(n.mchan))n.mchan={};
+  if(!n.fu||typeof n.fu!=='object'||Array.isArray(n.fu))n.fu={};
   return n;
 }
 const S={uid:null,profile:newProfile(),exp:{},pending:{e:{},p:false},tab:'home',net:navigator.onLine!==false,
@@ -26,6 +27,15 @@ function loadCache(){
   try{const d=JSON.parse(raw);S.profile=normProfile(d.profile);S.exp=d.exp||{};S.pending=d.pending||{e:{},p:false};
     if(!S.pending.e)S.pending.e={};S.lastCat=d.lastCat||'groceries';S.lastPay=d.lastPay||''}catch(e){}
 }
+/* profile settings merge per field, so a stale device can't overwrite newer lists or maps */
+const PKEYS=['name','currency','theme','cats','budget','payments','merchants','mcat','mchan','recurring'];
+const fstamp=(p,k)=>(p.fu&&Object.keys(p.fu).length)?(p.fu[k]||0):(p.updatedAt||0);
+function mergeProfile(a,b){
+  const o=Object.assign({},a);o.fu=Object.assign({},a.fu||{});
+  PKEYS.forEach(k=>{const ta=fstamp(a,k),tb=fstamp(b,k);if(tb>ta){o[k]=b[k];o.fu[k]=tb}else o.fu[k]=ta});
+  o.updatedAt=Math.max(a.updatedAt||0,b.updatedAt||0);return normProfile(o);
+}
+const profSig=p=>JSON.stringify(PKEYS.map(k=>[p[k],fstamp(p,k)]));
 const live=()=>Object.values(S.exp).filter(e=>!e.deleted);
 const merchantList=()=>[...new Set(S.profile.merchants.concat(live().map(x=>x.merchant).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
 const chanOf=n=>(n&&S.profile.mchan[n])||'';
@@ -39,7 +49,7 @@ function putExpense(e){e.updatedAt=Date.now();if(!e.createdAt)e.createdAt=e.upda
   S.lastCat=e.cat;save();render();setStatus();flush()}
 function delExpense(id){const e=S.exp[id];if(!e)return;S.exp[id]=Object.assign({},e,{deleted:true,updatedAt:Date.now()});
   S.pending.e[id]=1;save();render();setStatus();flush()}
-function putProfile(patch,quiet){Object.assign(S.profile,patch);S.profile.updatedAt=Date.now();S.pending.p=true;
+function putProfile(patch,quiet){const now=Date.now();Object.assign(S.profile,patch);S.profile.updatedAt=now;if(!S.profile.fu)S.profile.fu={};Object.keys(patch).forEach(k=>{S.profile.fu[k]=now});S.pending.p=true;
   applyTheme();save();if(!quiet)render();setStatus();flush()}
 
 /* ---------- sync ---------- */
@@ -58,7 +68,9 @@ async function flush(){
   if(flushing){flushAgain=true;return}
   flushing=true;S.syncing=hasPending();setStatus();
   try{
-    if(S.pending.p){const snap=JSON.parse(JSON.stringify(S.profile));await profRef().set(snap);
+    if(S.pending.p){
+      try{const rd=await profRef().get();if(rd&&rd.exists){const m=mergeProfile(S.profile,normProfile(rd.data()));if(profSig(m)!==profSig(S.profile)){S.profile=m;applyTheme();render()}}}catch(e){}
+      const snap=JSON.parse(JSON.stringify(S.profile));await profRef().set(snap);
       if(S.profile.updatedAt===snap.updatedAt)S.pending.p=false}
     for(const id of Object.keys(S.pending.e)){
       const rec=S.exp[id];if(!rec){delete S.pending.e[id];continue}
@@ -89,8 +101,9 @@ function onExpSnap(snap){
 }
 function onProfSnap(doc){
   if(!doc.exists){if(S.profile.updatedAt===0){S.profile.updatedAt=Date.now()}S.pending.p=true;flush();return}
-  const r=doc.data();
-  if(r&&r.updatedAt>S.profile.updatedAt){S.profile=normProfile(r);applyTheme();save();render()}
+  const r=normProfile(doc.data()),m=mergeProfile(S.profile,r);
+  if(profSig(m)!==profSig(S.profile)){S.profile=m;applyTheme();save();render()}
+  if(profSig(m)!==profSig(r)&&!S.pending.p){S.pending.p=true;flush()}
 }
 function connect(){
   unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];

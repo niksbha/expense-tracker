@@ -36,7 +36,7 @@ function vHistory(){
     '<label class="f">To<input id="hto" type="date" value="'+h.to+'" data-in="hto"></label></div>'+
     '<div class="two"><label class="f">Min amount<input id="hmin" type="number" inputmode="decimal" min="0" value="'+h.min+'" data-in="hmin"></label>'+
     '<label class="f">Max amount<input id="hmax" type="number" inputmode="decimal" min="0" value="'+h.max+'" data-in="hmax"></label></div>'+
-    '<div class="chips">'+S.profile.cats.map(c=>'<button class="chip" data-act="hcat" data-id="'+c.id+'" aria-pressed="'+h.cat.includes(c.id)+'"><span class="dot" style="background:var(--c'+c.color+')"></span>'+esc(c.name)+'</button>').join('')+'</div>'+
+    '<div class="f"><span>Category</span><div class="chips">'+S.profile.cats.map(c=>'<button class="chip" data-act="hcat" data-id="'+c.id+'" aria-pressed="'+h.cat.includes(c.id)+'"><span class="dot" style="background:var(--c'+c.color+')"></span>'+esc(c.name)+'</button>').join('')+'</div></div>'+
     '<div class="f"><span>Payment method</span><div class="chips">'+payList().map(p=>'<button class="chip" data-act="hpay" data-name="'+esc(p)+'" aria-pressed="'+h.pay.includes(p)+'">'+esc(p)+'</button>').join('')+'</div></div>'+
     '<div class="f"><span>Channel</span><div class="chips">'+CHANNELS.map(p=>'<button class="chip" data-act="hchan" data-name="'+esc(p)+'" aria-pressed="'+h.chan.includes(p)+'">'+esc(p)+'</button>').join('')+'</div></div>'+
     '<button class="btn sec" data-act="clearFilters">Clear filters</button></div>'}

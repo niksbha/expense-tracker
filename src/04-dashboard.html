@@ -55,7 +55,7 @@ function vHome(){
     '<button class="iconbtn" data-act="month" data-k="'+next+'" aria-label="Next month"'+(cur?' disabled style="opacity:.3"':'')+'>'+ic('chev')+'</button></div>'+
     '<div><div class="small fg2">Total spent'+(cur?' this month':'')+'</div><div class="hero num">'+money(total)+'</div></div>'+
     '<div class="stats"><div class="stat"><div class="v num">'+money(todayAmt)+'</div><div class="l">Today</div></div>'+
-    '<div class="stat"><div class="v num">'+money(avg)+'</div><div class="l">Daily average</div></div></div></div>';
+    '<div class="stat"><div class="v num">'+money(Math.round(avg))+'</div><div class="l">Daily average</div></div></div></div>';
   if(cur){const rows=budgetRows(k),hot=rows.filter(r=>r.level);
     hot.forEach(r=>{h+='<div class="alert '+r.level+'" style="margin-top:12px">'+ic('warn')+'<span>'+(r.level==='crit'?
       esc(r.name)+' is over the limit: '+money(r.spent)+' of '+money(r.limit)+'.':
@@ -69,12 +69,12 @@ function vHome(){
   else{let rows=bc.slice(0,6).map(r=>{const c=catOf(r.id);return{name:c.name,v:r.v,color:'var(--c'+c.color+')'}});
     if(bc.length>6)rows.push({name:'Everything else',v:sum(bc.slice(6).map(r=>({amount:r.v}))),color:'var(--muted)'});
     h+='<div class="donutwrap"><div class="chartbox">'+donut(rows,total)+'</div><div class="legend grow" style="min-width:150px">'+
-      rows.map(r=>'<div class="lr"><span class="dot" style="background:'+r.color+'"></span><span class="n">'+esc(r.name)+'</span><span class="num fg2">'+Math.round(r.v/total*100)+'%</span><span class="num" style="min-width:64px;text-align:right">'+esc(compact(r.v))+'</span></div>').join('')+'</div></div>'}
+      rows.map(r=>'<div class="lr"><span class="dot" style="background:'+r.color+'"></span><span class="n">'+esc(r.name)+'</span><span class="rt"><span class="num">'+esc(compact(r.v))+'</span><span class="num fg2 small">'+Math.round(r.v/total*100)+'%</span></span></div>').join('')+'</div></div>'}
   h+='</div>';
   h+='<h2>Spending trend</h2><div class="card stack"><div class="seg" role="group" aria-label="Trend range">'+
     '<button data-act="trend" data-v="daily" aria-pressed="'+(S.trend==='daily')+'">Daily</button><button data-act="trend" data-v="monthly" aria-pressed="'+(S.trend==='monthly')+'">Monthly</button></div>';
   let vals=[],labels=[],tips=[],every=1;
-  if(S.trend==='daily'){const n=daysIn(k);vals=Array(n).fill(0);list.forEach(e=>{vals[+e.date.slice(8)-1]+=e.amount});
+  if(S.trend==='daily'){const n=cur?+today().slice(8):daysIn(k);vals=Array(n).fill(0);list.forEach(e=>{vals[+e.date.slice(8)-1]+=e.amount});
     labels=vals.map((_,i)=>String(i+1));tips=vals.map((v,i)=>(i+1)+' '+MONTHS[+k.slice(5)-1].slice(0,3)+' · '+money(v));every=5}
   else{const keys=[];let y=+k.slice(0,4),m=+k.slice(5);for(let i=0;i<6;i++){keys.unshift(y+'-'+pad2(m));m--;if(m===0){m=12;y--}}
     keys.forEach(kk=>{const v=sum(monthExp(kk));vals.push(v);labels.push(MONTHS[+kk.slice(5)-1].slice(0,3));tips.push(monthName(kk)+' · '+money(v))})}
