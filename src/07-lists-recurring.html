@@ -54,7 +54,7 @@ function merchantGroups(){
   if(!groups.length)return '<div class="empty"><b>'+(q?'No matches':'No merchants yet')+'</b>'+(q?'Try a different search.':'They appear here as you add expenses.')+'</div>';
   return groups.map(g=>'<h2 style="display:flex;align-items:center;gap:8px">'+(g.c?'<span class="dot" style="background:var(--c'+g.c.color+')"></span>'+esc(g.c.name):'No category')+
     '<span class="muted" style="margin-left:auto;text-transform:none;letter-spacing:0">'+g.items.length+'</span></h2><div class="card list">'+
-    g.items.map(n=>'<button class="link" data-act="editList" data-k="merchant" data-name="'+esc(n)+'"><span class="grow" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(n)+'</span>'+
+    g.items.map(n=>'<button class="link" data-act="editList" data-k="merchant" data-name="'+esc(n)+'"><span class="grow" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(n)+(chanOf(n)?' <span class="small muted">· '+esc(chanOf(n))+'</span>':'')+'</span>'+
       '<span class="small muted num">'+(cnt[n]||0)+' · '+money(tot[n]||0)+'</span>'+ic('chev')+'</button>').join('')+'</div>').join('');
 }
 function vMerchants(){
@@ -65,7 +65,8 @@ function openListItem(kind,old){
   SL={kind,old:old||null};const isM=kind==='merchant';
   let catHtml='';
   if(isM){const cur=old?merchantIndex().prim(old):null,sel=cur||'other';
-    catHtml='<label class="f">Category<select id="lcat">'+S.profile.cats.map(c=>'<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'+
+    catHtml='<label class="f">Channel<select id="lchan"><option value="">Not set</option>'+CHANNELS.map(x=>'<option'+(x===chanOf(old)?' selected':'')+'>'+x+'</option>').join('')+'</select></label>'+
+      '<label class="f">Category<select id="lcat">'+S.profile.cats.map(c=>'<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label>'+
       (old?'<label class="row small fg2" style="gap:10px"><input id="lmove" type="checkbox" style="width:20px;height:20px"><span>Also move its past expenses to this category</span></label>':'')}
   $('#layer').innerHTML='<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="'+(isM?'Merchant':'Payment method')+'">'+
     '<div class="hd"><span>'+(old?'Edit ':'New ')+(isM?'merchant':'payment method')+'</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
@@ -88,6 +89,8 @@ function saveListItem(){
     const cat=$('#lcat').value,mc=Object.assign({},S.profile.mcat);
     if(SL.old&&SL.old!==target)delete mc[SL.old];
     mc[target]=cat;patch.mcat=mc;
+    const ch=Object.assign({},S.profile.mchan);if(SL.old&&SL.old!==target){if(!ch[target]&&ch[SL.old])ch[target]=ch[SL.old];delete ch[SL.old]}
+    const cv=$('#lchan').value;if(cv)ch[target]=cv;else delete ch[target];patch.mchan=ch;
     const mv=$('#lmove');
     if(mv&&mv.checked){const now=Date.now();Object.values(S.exp).forEach(e=>{if(!e.deleted&&e.merchant===target&&e.cat!==cat){S.exp[e.id]=Object.assign({},e,{cat,updatedAt:now});S.pending.e[e.id]=1}})}
   }
@@ -98,7 +101,7 @@ function deleteListItem(){
   if(kind==='pay'&&payList().length<=1){toast('Keep at least one payment method.');return}
   renameEverywhere(kind,SL.old,'');
   const patch={[key]:S.profile[key].filter(x=>x!==SL.old)};
-  if(kind==='merchant'){const mc=Object.assign({},S.profile.mcat);delete mc[SL.old];patch.mcat=mc}
+  if(kind==='merchant'){const mc=Object.assign({},S.profile.mcat);delete mc[SL.old];patch.mcat=mc;const ch=Object.assign({},S.profile.mchan);delete ch[SL.old];patch.mchan=ch}
   putProfile(patch);closeSheet();toast('Deleted');
 }
 

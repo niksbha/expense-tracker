@@ -45,10 +45,11 @@ const ic=(n,c)=>'<svg class="i'+(c?' '+c:'')+'" viewBox="0 0 24 24" aria-hidden=
 const PICK_ICONS=['tag','home','coffee','gift','paw','plane','phone','wrench','music','dumbbell','car','bolt','utensils','bus','bag','receipt','heart','film','book','dots'];
 const COLORS=12;
 const DEFAULT_CATS=[
- {id:'food',name:'Food',icon:'utensils',color:1},{id:'transport',name:'Transport',icon:'bus',color:0},
+ {id:'groceries',name:'Groceries',icon:'bag',color:3},{id:'eating',name:'Eating out',icon:'utensils',color:1},{id:'transport',name:'Transport',icon:'bus',color:0},
  {id:'shopping',name:'Shopping',icon:'bag',color:4},{id:'bills',name:'Bills',icon:'receipt',color:6},
  {id:'health',name:'Health',icon:'heart',color:7},{id:'entertainment',name:'Entertainment',icon:'film',color:2},
  {id:'education',name:'Education',icon:'book',color:5},{id:'other',name:'Other',icon:'dots',color:8}];
+const CHANNELS=['Delivery app','Offline store','Mart','Online store'];
 const DEFAULT_IDS=DEFAULT_CATS.map(c=>c.id);
 const CURRENCIES=['INR','USD','EUR','GBP','AED','AUD','CAD','SGD','JPY'];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

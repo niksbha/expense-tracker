@@ -16,7 +16,7 @@ document.addEventListener('click',async ev=>{
     case'trend':S.trend=d.v;render();break;
     case'toggleFilters':S.hist.open=!S.hist.open;render();break;
     case'hcat':{const c=S.hist.cat,i=c.indexOf(d.id);i<0?c.push(d.id):c.splice(i,1);el.setAttribute('aria-pressed',String(i<0));renderHist();break}
-    case'clearFilters':S.hist=Object.assign(S.hist,{cat:[],pay:[],from:'',to:'',min:'',max:''});render();break;
+    case'clearFilters':S.hist=Object.assign(S.hist,{cat:[],pay:[],chan:[],from:'',to:'',min:'',max:''});render();break;
     case'pickCat':SH.cat=d.id;$('#cchips').innerHTML=chipsHtml();refreshMerchantUI();break;
     case'mAll':SH.allM=!SH.allM;refreshMerchantUI();break;
     case'key':keyEntry(d.k);break;
@@ -27,6 +27,8 @@ document.addEventListener('click',async ev=>{
       toast('Expense deleted',()=>{delete rec.deleted;putExpense(rec)});break}
     case'undo':if(UNDO){const f=UNDO;UNDO=null;$('#toast').hidden=true;f()}break;
     case'pickMerch':applyMerchant(d.name);break;
+    case'hchan':{const c=S.hist.chan,i=c.indexOf(d.name);i<0?c.push(d.name):c.splice(i,1);el.setAttribute('aria-pressed',String(i<0));renderHist();break}
+    case'chanCat':S.chanCat=d.id;render();break;
     case'hpay':{const c=S.hist.pay,i=c.indexOf(d.name);i<0?c.push(d.name):c.splice(i,1);el.setAttribute('aria-pressed',String(i<0));renderHist();break}
     case'newList':openListItem(d.k);break;
     case'editList':openListItem(d.k,d.name);break;

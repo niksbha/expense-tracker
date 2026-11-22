@@ -23,7 +23,7 @@ function updateAmt(){
 }
 function openExpense(id){
   const e=id?S.exp[id]:null;
-  SH={id:id||null,amt:e?String(e.amount):'',cat:e?e.cat:S.lastCat,del:false,allM:false};
+  SH={id:id||null,amt:e?String(e.amount):'',cat:e?e.cat:(S.profile.cats.some(c=>c.id===S.lastCat)?S.lastCat:S.profile.cats[0].id),del:false,allM:false};
   const pays=S.profile.payments.slice();
   if(e&&e.payment&&!pays.includes(e.payment))pays.push(e.payment);
   const curPay=e?(e.payment||''):(pays.includes(S.lastPay)?S.lastPay:pays[0]);
@@ -115,8 +115,8 @@ const csvCell=v=>{v=String(v==null?'':v);return /[",\r\n]/.test(v)?'"'+v.replace
 async function exportCsv(list){
   if(!list.length){toast('No expenses to export yet.');return}
   const rows=list.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.createdAt-b.createdAt);
-  const csv='﻿'+['Date,Amount,Currency,Category,Merchant,Payment method,Note'].concat(rows.map(e=>
-    [e.date,e.amount.toFixed(2),S.profile.currency,catOf(e.cat).name,e.merchant,e.payment,e.note].map(csvCell).join(','))).join('\r\n');
+  const csv='﻿'+['Date,Amount,Currency,Category,Merchant,Channel,Payment method,Note'].concat(rows.map(e=>
+    [e.date,e.amount.toFixed(2),S.profile.currency,catOf(e.cat).name,e.merchant,chanOf(e.merchant),e.payment,e.note].map(csvCell).join(','))).join('\r\n');
   let dl=null;try{dl=window.claude&&claude.use?await claude.use('downloads'):null}catch(e){}
   if(dl){try{await dl.save({filename:'expenses-'+today()+'.csv',data:csv});toast('CSV ready');return}catch(e){if(e&&e.code==='declined')return}}
   $('#layer').innerHTML='<div class="scrim"><div class="sheet"><div class="hd"><span>Export CSV</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+

@@ -5,11 +5,12 @@ function filtered(){
     if(h.cat.length&&!h.cat.includes(e.cat))return false;
     if(h.from&&e.date<h.from)return false;if(h.to&&e.date>h.to)return false;
     if(h.pay.length&&!h.pay.includes(e.payment||''))return false;
+    if(h.chan.length&&!h.chan.includes(chanOf(e.merchant)))return false;
     if(h.min!==''&&e.amount<+h.min)return false;if(h.max!==''&&e.amount>+h.max)return false;
     if(q&&!((e.merchant||'')+' '+(e.payment||'')+' '+(e.note||'')+' '+catOf(e.cat).name+' '+e.amount).toLowerCase().includes(q))return false;
     return true}).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
 }
-const filterCount=()=>{const h=S.hist;return(h.cat.length?1:0)+(h.pay.length?1:0)+(h.from||h.to?1:0)+(h.min!==''||h.max!==''?1:0)};
+const filterCount=()=>{const h=S.hist;return(h.cat.length?1:0)+(h.pay.length?1:0)+(h.chan.length?1:0)+(h.from||h.to?1:0)+(h.min!==''||h.max!==''?1:0)};
 function histSummary(list){return list.length+' expense'+(list.length===1?'':'s')+' · '+money(sum(list))}
 function histList(list){
   if(!list.length)return live().length?'<div class="empty"><b>No matches</b>Try a different search or clear the filters.</div>':
@@ -37,6 +38,7 @@ function vHistory(){
     '<label class="f">Max amount<input id="hmax" type="number" inputmode="decimal" min="0" value="'+h.max+'" data-in="hmax"></label></div>'+
     '<div class="chips">'+S.profile.cats.map(c=>'<button class="chip" data-act="hcat" data-id="'+c.id+'" aria-pressed="'+h.cat.includes(c.id)+'"><span class="dot" style="background:var(--c'+c.color+')"></span>'+esc(c.name)+'</button>').join('')+'</div>'+
     '<div class="f"><span>Payment method</span><div class="chips">'+payList().map(p=>'<button class="chip" data-act="hpay" data-name="'+esc(p)+'" aria-pressed="'+h.pay.includes(p)+'">'+esc(p)+'</button>').join('')+'</div></div>'+
+    '<div class="f"><span>Channel</span><div class="chips">'+CHANNELS.map(p=>'<button class="chip" data-act="hchan" data-name="'+esc(p)+'" aria-pressed="'+h.chan.includes(p)+'">'+esc(p)+'</button>').join('')+'</div></div>'+
     '<button class="btn sec" data-act="clearFilters">Clear filters</button></div>'}
   o+='<div class="row small fg2" style="justify-content:space-between"><span id="hsum">'+histSummary(l)+'</span>'+
     '<button class="row" style="color:var(--accent);font-weight:600;min-height:36px" data-act="exportFiltered">'+ic('download')+' Export CSV</button></div><div id="hlist">'+histList(l)+'</div>';

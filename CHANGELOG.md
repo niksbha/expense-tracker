@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0 — 2026-11-23
+- Food split into Groceries and Eating out (defaults)
+- Channel on each merchant (Delivery app, Offline store, Mart, Online store); shopping-app presets set it
+- Compare: Where you buy (channel share per category, last 6 months); History: channel filter; CSV has Channel column
+
 ## 0.10.0 — 2026-11-23
 - Recently deleted screen (Profile): restore or delete forever; deleted expenses auto-removed after 30 days
 

@@ -69,6 +69,24 @@ function monthsChart(keys,vals,avg){
   if(avg!=null)b+='<line x1="'+ml+'" x2="'+(W-mr)+'" y1="'+Y(avg)+'" y2="'+Y(avg)+'" stroke="var(--c2)" stroke-width="2" stroke-linecap="round"/>';
   return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Monthly spending with historic average line">'+g+b+x+hit+'</svg>';
 }
+function chanCard(D){
+  const all=live(),withCh=all.filter(e=>chanOf(e.merchant));
+  const h='<h2>Where you buy</h2>';
+  if(!withCh.length)return h+'<div class="card small fg2">Set a channel (Delivery app, Offline store, Mart…) on your merchants in Profile → Merchants to compare where you buy.</div>';
+  const ids=[];['groceries','eating'].concat(withCh.map(e=>e.cat)).forEach(i=>{if(S.profile.cats.some(c=>c.id===i)&&!ids.includes(i))ids.push(i)});
+  const cid=ids.includes(S.chanCat)?S.chanCat:ids[0];
+  const keys=[];let k=D.k;for(let i=0;i<6;i++){keys.push(k);k=prevKey(k)}
+  const cat=all.filter(e=>e.cat===cid),six=cat.filter(e=>keys.includes(mkey(e.date))),tot=sum(six);
+  const chip=ids.map(i=>'<button class="chip" data-act="chanCat" data-id="'+i+'" aria-pressed="'+(i===cid)+'">'+esc(catOf(i).name)+'</button>').join('');
+  if(!tot)return h+'<div class="card stack"><div class="chips">'+chip+'</div><div class="small fg2">No '+esc(catOf(cid).name)+' spending in the last 6 months.</div></div>';
+  const prev=prevKey(D.k),byCh=groupSum(six,e=>chanOf(e.merchant)||'No channel');
+  const rows=byCh.map(r=>{
+    const inC=six.filter(e=>(chanOf(e.merchant)||'No channel')===r.name);
+    const tm=sum(inC.filter(e=>mkey(e.date)===D.k)),lm=sum(inC.filter(e=>mkey(e.date)===prev));
+    const ms=groupSum(inC,e=>e.merchant||'No merchant').slice(0,3).map(x=>esc(x.name)+' '+money(x.v)).join(' · ');
+    return '<div>'+shareList([r],tot)+'<div class="small fg2" style="margin-top:4px">This month '+money(tm)+' · Last month '+money(lm)+'</div><div class="small muted">'+ms+'</div></div>'}).join('');
+  return h+'<div class="card stack"><div class="chips">'+chip+'</div><div class="small fg2">Share of '+esc(catOf(cid).name)+' spending by channel, last 6 months · '+money(tot)+'</div>'+rows+'</div>';
+}
 function vCompare(){
   if(!live().length)return '<div class="empty"><b>No expenses yet</b>Tap + to add your first expense. Comparisons start once you have a previous month.</div>';
   const D=compareData(),pN=D.past.length,key=(c,l)=>'<span class="row small fg2" style="gap:6px"><i style="display:inline-block;width:16px;height:3px;border-radius:2px;background:var('+c+')"></i>'+l+'</span>';
@@ -89,6 +107,7 @@ function vCompare(){
     '<details><summary class="small fg2" style="cursor:pointer;min-height:32px">View as table</summary><table class="small num" style="width:100%;border-collapse:collapse">'+
     shown.map((m,i)=>'<tr><td class="fg2" style="padding:4px 0">'+monthName(m)+'</td><td style="text-align:right">'+money(vals[i])+'</td></tr>').join('')+'</table></details></div>';
   const cm=monthExp(D.k),ctot=sum(cm),mrows=groupSum(cm.filter(e=>e.merchant),e=>e.merchant).slice(0,5),prows=groupSum(cm,e=>e.payment||'Not set');
+  h+=chanCard(D);
   if(mrows.length)h+='<h2>Top merchants this month</h2><div class="card stack">'+shareList(mrows,ctot)+'</div>';
   if(prows.length)h+='<h2>Payment methods this month</h2><div class="card stack">'+shareList(prows,ctot)+'</div>';
   h+='<h2>By category</h2><div class="stack">'+(D.catRows.length?D.catRows.map(r=>

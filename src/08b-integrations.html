@@ -1,10 +1,10 @@
 /* ---------- shopping apps: popular merchants + paste-an-order ---------- */
 const PRESETS=[
-  {n:'Blinkit',c:'food',k:['blinkit','grofers']},{n:'Instamart',c:'food',k:['instamart']},
-  {n:'BigBasket',c:'food',k:['bigbasket','big basket']},{n:'Zepto',c:'food',k:['zepto']},
-  {n:'JioMart',c:'food',k:['jiomart']},{n:'Swiggy',c:'food',k:['swiggy']},{n:'Zomato',c:'food',k:['zomato']},
-  {n:'Myntra',c:'shopping',k:['myntra']},{n:'Amazon',c:'shopping',k:['amazon']},{n:'Flipkart',c:'shopping',k:['flipkart']},
-  {n:'Ajio',c:'shopping',k:['ajio']},{n:'Meesho',c:'shopping',k:['meesho']},{n:'Nykaa',c:'shopping',k:['nykaa']}
+  {n:'Blinkit',c:'groceries',ch:'Delivery app',k:['blinkit','grofers']},{n:'Instamart',c:'groceries',ch:'Delivery app',k:['instamart']},
+  {n:'BigBasket',c:'groceries',ch:'Delivery app',k:['bigbasket','big basket']},{n:'Zepto',c:'groceries',ch:'Delivery app',k:['zepto']},
+  {n:'JioMart',c:'groceries',ch:'Delivery app',k:['jiomart']},{n:'Swiggy',c:'eating',ch:'Delivery app',k:['swiggy']},{n:'Zomato',c:'eating',ch:'Delivery app',k:['zomato']},
+  {n:'Myntra',c:'shopping',ch:'Online store',k:['myntra']},{n:'Amazon',c:'shopping',ch:'Online store',k:['amazon']},{n:'Flipkart',c:'shopping',ch:'Online store',k:['flipkart']},
+  {n:'Ajio',c:'shopping',ch:'Online store',k:['ajio']},{n:'Meesho',c:'shopping',ch:'Online store',k:['meesho']},{n:'Nykaa',c:'shopping',ch:'Online store',k:['nykaa']}
 ];
 const presetCat=p=>S.profile.cats.some(c=>c.id===p.c)?p.c:'other';
 const presetsLeft=()=>PRESETS.filter(p=>!merchantList().some(m=>m.toLowerCase()===p.n.toLowerCase()));
@@ -16,10 +16,10 @@ function vPresets(){
     '<div class="small muted" style="margin-top:8px">Adds the app as a merchant in the right category. You can change it later.</div></div>';
 }
 function addPresets(names){
-  const merchants=S.profile.merchants.slice(),mc=Object.assign({},S.profile.mcat);
+  const merchants=S.profile.merchants.slice(),mc=Object.assign({},S.profile.mcat),mh=Object.assign({},S.profile.mchan);
   PRESETS.filter(p=>names.includes(p.n)).forEach(p=>{if(!merchantList().some(m=>m.toLowerCase()===p.n.toLowerCase())&&!merchants.includes(p.n))merchants.push(p.n);
-    if(!mc[p.n])mc[p.n]=presetCat(p)});
-  putProfile({merchants,mcat:mc});
+    if(!mc[p.n])mc[p.n]=presetCat(p);if(p.ch&&!mh[p.n])mh[p.n]=p.ch});
+  putProfile({merchants,mcat:mc,mchan:mh});
 }
 /* --- parse text copied from an order SMS / email / bank alert --- */
 const MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};

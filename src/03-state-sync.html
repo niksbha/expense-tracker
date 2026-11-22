@@ -1,6 +1,6 @@
 /* ---------- state ---------- */
 const DEFAULT_PAY=['Cash','UPI','Credit card','Debit card','Net banking','Wallet'];
-function newProfile(){return{name:'',currency:'INR',theme:'system',cats:JSON.parse(JSON.stringify(DEFAULT_CATS)),budget:{overall:null,cats:{}},payments:DEFAULT_PAY.slice(),merchants:[],mcat:{},recurring:[],updatedAt:0}}
+function newProfile(){return{name:'',currency:'INR',theme:'system',cats:JSON.parse(JSON.stringify(DEFAULT_CATS)),budget:{overall:null,cats:{}},payments:DEFAULT_PAY.slice(),merchants:[],mcat:{},mchan:{},recurring:[],updatedAt:0}}
 function normProfile(p){
   const n=Object.assign(newProfile(),p||{});
   if(!Array.isArray(n.cats))n.cats=[];
@@ -13,20 +13,22 @@ function normProfile(p){
   if(!Array.isArray(n.merchants))n.merchants=[];
   if(!Array.isArray(n.recurring))n.recurring=[];
   if(!n.mcat||typeof n.mcat!=='object'||Array.isArray(n.mcat))n.mcat={};
+  if(!n.mchan||typeof n.mchan!=='object'||Array.isArray(n.mchan))n.mchan={};
   return n;
 }
 const S={uid:null,profile:newProfile(),exp:{},pending:{e:{},p:false},tab:'home',net:navigator.onLine!==false,
   syncing:false,hasDb:false,writable:true,reached:false,unreach:false,trend:'daily',
-  hist:{q:'',cat:[],pay:[],from:'',to:'',min:'',max:'',open:false},lastCat:'food',lastPay:'',dashMonth:mkey(today()),sub:null};
+  hist:{q:'',cat:[],pay:[],chan:[],from:'',to:'',min:'',max:'',open:false},lastCat:'groceries',lastPay:'',dashMonth:mkey(today()),sub:null};
 const cacheKey=()=>'et.v1.'+(S.uid||lsGet('et.last')||'anon');
 function save(){lsSet(cacheKey(),JSON.stringify({profile:S.profile,exp:S.exp,pending:S.pending,lastCat:S.lastCat,lastPay:S.lastPay}))}
 function loadCache(){
   const raw=lsGet(cacheKey());if(!raw)return;
   try{const d=JSON.parse(raw);S.profile=normProfile(d.profile);S.exp=d.exp||{};S.pending=d.pending||{e:{},p:false};
-    if(!S.pending.e)S.pending.e={};S.lastCat=d.lastCat||'food';S.lastPay=d.lastPay||''}catch(e){}
+    if(!S.pending.e)S.pending.e={};S.lastCat=d.lastCat||'groceries';S.lastPay=d.lastPay||''}catch(e){}
 }
 const live=()=>Object.values(S.exp).filter(e=>!e.deleted);
 const merchantList=()=>[...new Set(S.profile.merchants.concat(live().map(x=>x.merchant).filter(Boolean)))].sort((a,b)=>a.localeCompare(b));
+const chanOf=n=>(n&&S.profile.mchan[n])||'';
 const catOf=id=>S.profile.cats.find(c=>c.id===id)||S.profile.cats.find(c=>c.id==='other');
 const hasPending=()=>S.pending.p||Object.keys(S.pending.e).length>0;
 function applyTheme(){const t=S.profile.theme,r=document.documentElement;
