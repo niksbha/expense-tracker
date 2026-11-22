@@ -1,0 +1,114 @@
+/* ---------- CSV import ---------- */
+let SI=null;
+function parseCsv(text){
+  let t=String(text||'').replace(/^﻿/,'');
+  const first=t.split(/\r?\n/,1)[0]||'',cnt=c=>first.split(c).length-1;
+  const D=cnt('\t')>cnt(',')&&cnt('\t')>=cnt(';')?'\t':cnt(';')>cnt(',')?';':',';
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;
+    else if(c===D){row.push(f);f=''}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);f='';if(row.some(x=>x.trim()!==''))rows.push(row);row=[]}
+    else f+=c}
+  row.push(f);if(row.some(x=>x.trim()!==''))rows.push(row);
+  return rows;
+}
+const IMON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+function parseDateStr(s){
+  s=String(s||'').trim();let y,m,d,a;
+  if((a=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))){y=+a[1];m=+a[2];d=+a[3]}
+  else if((a=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))){d=+a[1];m=+a[2];y=+a[3];if(y<100)y+=2000}
+  else if((a=s.match(/^(\d{1,2})(?:st|nd|rd|th)?[\s\-]+([A-Za-z]{3})[a-z]*\.?,?[\s\-]*(\d{2,4})/))){d=+a[1];m=IMON[a[2].toLowerCase()];y=+a[3];if(y<100)y+=2000}
+  else if((a=s.match(/^([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/))){m=IMON[a[1].toLowerCase()];d=+a[2];y=+a[3]}
+  else return null;
+  if(!m||m<1||m>12||d<1||d>31||y<1990||y>2100)return null;
+  const dt=new Date(y,m-1,d);if(dt.getMonth()!==m-1)return null;
+  return y+'-'+pad2(m)+'-'+pad2(d);
+}
+const HDR={date:['date','day','transaction date','txn date'],amount:['amount','amt','value','price','debit'],category:['category','cat'],
+  merchant:['merchant','payee','vendor','shop','store'],channel:['channel'],payment:['payment method','payment','method','mode','paid by'],
+  note:['note','notes','remark','remarks','memo','description','narration','details']};
+function planImport(text){
+  const rows=parseCsv(text),P={rows:[],dups:0,errors:[],newCats:[],newMerch:[],newPays:[],total:0};
+  if(rows.length<2){P.fatal='Nothing to import. The first row must be a header and the next rows your expenses.';return P}
+  const head=rows[0].map(h=>h.trim().toLowerCase()),col={};
+  Object.keys(HDR).forEach(k=>{const i=head.findIndex(h=>HDR[k].includes(h));if(i>=0)col[k]=i});
+  if(col.date===undefined||col.amount===undefined){P.fatal='The header row needs at least Date and Amount columns. Found: '+rows[0].join(', ');return P}
+  const cats=S.profile.cats.slice(),catBy={};cats.forEach(c=>{catBy[c.name.toLowerCase()]=c.id;catBy[c.id.toLowerCase()]=c.id});
+  const mer={};merchantList().forEach(m=>mer[m.toLowerCase()]=m);
+  const pay={};payList().forEach(m=>pay[m.toLowerCase()]=m);
+  const have={};live().forEach(e=>{const k=e.date+'|'+e.amount.toFixed(2)+'|'+(e.merchant||'').toLowerCase();have[k]=(have[k]||0)+1});
+  const get=(r,k)=>col[k]===undefined?'':String(r[col[k]]==null?'':r[col[k]]).trim();
+  const body=rows.slice(1,5001);P.total=body.length;
+  body.forEach((r,i)=>{
+    const line=i+2,date=parseDateStr(get(r,'date')),raw=get(r,'amount').replace(/[^\d.\-]/g,'');
+    const neg=/^-/.test(raw),amt=round2(Math.abs(parseFloat(raw)));
+    if(!date){P.errors.push('Row '+line+': date "'+get(r,'date')+'" not understood');return}
+    if(neg&&amt>0){P.errors.push('Row '+line+': negative amount (refund or credit) skipped');return}
+    if(!(amt>0)){P.errors.push('Row '+line+': amount "'+get(r,'amount')+'" not understood');return}
+    if(amt>999999999){P.errors.push('Row '+line+': amount too large');return}
+    let cname=get(r,'category').slice(0,24),cid='other';
+    if(cname){const hit=catBy[cname.toLowerCase()];
+      if(hit)cid=hit;else{cid='c'+Date.now().toString(36)+P.newCats.length;
+        const nc={id:cid,name:cname,icon:'tag',color:(9+P.newCats.length)%COLORS};cats.push(nc);P.newCats.push(nc);catBy[cname.toLowerCase()]=cid}}
+    let m=get(r,'merchant').slice(0,60);
+    if(m){const ex=mer[m.toLowerCase()];if(ex)m=ex;else{mer[m.toLowerCase()]=m;P.newMerch.push({name:m,cat:cid,ch:null})}}
+    const chRaw=get(r,'channel').toLowerCase(),ch=CHANNELS.find(x=>x.toLowerCase()===chRaw)||null;
+    if(m&&ch){const nm=P.newMerch.find(x=>x.name===m);if(nm&&!nm.ch)nm.ch=ch}
+    let p=get(r,'payment').slice(0,30);
+    if(p){const ex=pay[p.toLowerCase()];if(ex)p=ex;else{pay[p.toLowerCase()]=p;P.newPays.push(p)}}
+    const key=date+'|'+amt.toFixed(2)+'|'+m.toLowerCase();
+    if(have[key]>0){have[key]--;P.dups++;return}
+    P.rows.push({date,amount:amt,cat:cid,merchant:m,payment:p,note:get(r,'note').slice(0,140)});
+  });
+  P.cats=cats;
+  return P;
+}
+function openImport(){
+  SI=null;
+  $('#layer').innerHTML='<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="Import CSV">'+
+    '<div class="hd"><span>Import CSV</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
+    '<div class="sc"><div class="small fg2">Use a file exported from this app, or any CSV with a header row containing Date and Amount. Optional columns: Category, Merchant, Channel, Payment method, Note.</div>'+
+    '<label class="f">Choose a CSV file<input id="ifile" type="file" accept=".csv,.txt,text/csv,text/plain"></label>'+
+    '<label class="f">Or paste the CSV text<textarea id="icsv" rows="5" placeholder="Date,Amount,Category,Merchant&#10;2026-11-20,250,Groceries,Blinkit" style="width:100%;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px;font-family:monospace;font-size:12px"></textarea></label>'+
+    '<button class="btn block" data-act="importPreview">Preview</button><div id="iprev" aria-live="polite"></div><div style="height:12px"></div></div></div></div>';
+}
+function previewImport(){
+  const box=$('#icsv'),out=$('#iprev');if(!box||!out)return;
+  const P=planImport(box.value);SI=P.fatal?null:P;
+  if(P.fatal){out.innerHTML='<div class="alert warn">'+ic('warn')+'<span>'+esc(P.fatal)+'</span></div>';return}
+  const li=(n,t)=>n?'<div class="row small" style="gap:8px"><span class="grow">'+t+'</span><b class="num">'+n+'</b></div>':'';
+  out.innerHTML='<div class="card stack" style="margin-top:6px">'+
+    li(P.rows.length,'New expenses to add · <span class="num">'+money(P.rows.reduce((a,r)=>a+r.amount,0))+'</span>')+
+    li(P.dups,'Already in the app (skipped)')+li(P.errors.length,'Rows with problems (skipped)')+
+    li(P.newCats.length,'New categories: '+esc(P.newCats.map(c=>c.name).join(', ')))+
+    li(P.newMerch.length,'New merchants')+li(P.newPays.length,'New payment methods')+
+    (P.errors.length?'<div class="small fg2">'+P.errors.slice(0,5).map(esc).join('<br>')+(P.errors.length>5?'<br>and '+(P.errors.length-5)+' more':'')+'</div>':'')+
+    '<div class="small fg2">Amounts are taken in '+esc(S.profile.currency)+'; a Currency column is ignored.</div></div>'+
+    (P.rows.length?'<button class="btn block" data-act="importGo" style="margin-top:10px">Import '+P.rows.length+' expense'+(P.rows.length===1?'':'s')+'</button>':'<div class="small fg2" style="margin-top:8px">Nothing new to import.</div>');
+}
+function runImport(){
+  const P=SI;if(!P||!P.rows.length)return;
+  const now=Date.now(),patch={},ids=[];
+  if(P.newCats.length)patch.cats=P.cats;
+  const mer=S.profile.merchants.slice(),mc=Object.assign({},S.profile.mcat),mh=Object.assign({},S.profile.mchan),pays=S.profile.payments.slice();
+  P.newMerch.forEach(x=>{if(!mer.includes(x.name))mer.push(x.name);if(!mc[x.name])mc[x.name]=x.cat;if(x.ch&&!mh[x.name])mh[x.name]=x.ch});
+  P.newPays.forEach(x=>{if(!pays.includes(x))pays.push(x)});
+  if(P.newMerch.length){patch.merchants=mer;patch.mcat=mc;patch.mchan=mh}
+  if(P.newPays.length)patch.payments=pays;
+  P.rows.forEach((r,i)=>{const id=newId()+i.toString(36);ids.push(id);
+    S.exp[id]=Object.assign({id,createdAt:now+i,updatedAt:now+i},r);S.pending.e[id]=1});
+  if(Object.keys(patch).length){Object.assign(S.profile,patch);S.profile.updatedAt=now;S.pending.p=true}
+  SI=null;closeSheet();save();render();setStatus();flush();
+  toast('Imported '+ids.length+' expense'+(ids.length===1?'':'s'),()=>{
+    const t=Date.now();ids.forEach(id=>{if(S.exp[id]){S.exp[id]=Object.assign({},S.exp[id],{deleted:true,updatedAt:t});S.pending.e[id]=1}});
+    save();render();setStatus();flush()});
+}
+function readImportFile(f){
+  if(!f)return;const box=$('#icsv');
+  if(f.size>2*1024*1024){$('#iprev').innerHTML='<div class="alert warn">'+ic('warn')+'<span>That file is over 2 MB. Split it into smaller files.</span></div>';return}
+  const fr=new FileReader();fr.onload=()=>{box.value=String(fr.result||'');previewImport()};
+  fr.onerror=()=>{$('#iprev').innerHTML='<div class="alert warn">'+ic('warn')+'<span>Could not read that file. Paste the text instead.</span></div>'};
+  fr.readAsText(f);
+}

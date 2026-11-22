@@ -60,7 +60,8 @@ function vProfile(){
     '<button class="link" data-act="sub" data-t="pays"><span class="grow">Payment methods</span><span class="muted">'+payList().length+'</span>'+ic('chev')+'</button>'+
     '<button class="link" data-act="sub" data-t="recur"><span class="grow">Recurring expenses</span><span class="muted">'+p.recurring.length+'</span>'+ic('chev')+'</button>'+
     '<button class="link" data-act="sub" data-t="trash"><span class="grow">Recently deleted</span><span class="muted">'+trashList().length+'</span>'+ic('chev')+'</button>'+
-    '<button class="link" data-act="exportAll"><span class="grow">Export all expenses as CSV</span>'+ic('download')+'</button></div>'+
+    '<button class="link" data-act="exportAll"><span class="grow">Export all expenses as CSV</span>'+ic('download')+'</button>'+
+    '<button class="link" data-act="importOpen"><span class="grow">Import expenses from CSV</span>'+ic('plus')+'</button></div>'+
     '<h2>Sync</h2><div class="card small fg2">Your expenses save on this device first and sync to your other signed-in devices when you are online. If two devices edit the same expense, the most recent change wins.</div>'+
     '<h2>Data</h2><div class="stack">'+
     '<button class="btn sec block" data-act="askWipeDevice">Clear data on this device</button>'+confirmBox('device','Removes the local copy on this device. Your cloud data stays and reloads from there.','Clear device')+

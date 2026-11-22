@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.12.0 — 2026-11-23
+- Import expenses from CSV (Profile): file picker or paste, preview, duplicate skipping, new categories/merchants/payments/channels created, one-tap Undo
+
 ## 0.11.1 — 2026-11-23
 - Fix: order-message reader no longer mistakes words ending in "rs" (hours, orders) followed by a number for an amount
 - Fix: merging two merchants keeps the target's category and channel unless you change them

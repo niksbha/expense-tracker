@@ -67,6 +67,9 @@ document.addEventListener('click',async ev=>{
       else if(w==='wipe'){render();if(await wipeExpenses())toast('All expenses deleted')}
       else if(w==='account'){render();await wipeAccount();toast('Account data deleted')}
       break}
+    case'importOpen':openImport();break;
+    case'importPreview':previewImport();break;
+    case'importGo':runImport();break;
     case'exportAll':exportCsv(live());break;
     case'exportFiltered':exportCsv(filtered());break;
     case'copyCsv':{const b=$('#csvbox');b.select();try{await navigator.clipboard.writeText(b.value);toast('Copied')}catch(e){toast('Press and hold to copy the selected text')}break}
@@ -86,6 +89,7 @@ document.addEventListener('input',ev=>{
 });
 document.addEventListener('change',ev=>{
   const tid=ev.target.id;
+  if(tid==='ifile'){readImportFile(ev.target.files&&ev.target.files[0]);return}
   if(tid==='sdate'&&SH){SH.future=false;const w=$('#datewarn'),s=$('#ssave');if(w)w.hidden=!(ev.target.value>today());if(s)s.textContent=SH.id?'Save changes':'Save expense'}
   if(tid==='smerch'&&SH&&!SH.id&&ev.target.value&&ev.target.value!=='__new__')applyMerchant(ev.target.value);
   const nw=ev.target.dataset&&ev.target.dataset.new;
