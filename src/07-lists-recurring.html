@@ -88,9 +88,10 @@ function saveListItem(){
   if(kind==='merchant'){
     const cat=$('#lcat').value,mc=Object.assign({},S.profile.mcat);
     if(SL.old&&SL.old!==target)delete mc[SL.old];
-    mc[target]=cat;patch.mcat=mc;
+    const merging=!!(SL.old&&SL.old!==target&&ex),tCat=S.profile.mcat[target],tCh=S.profile.mchan[target];
+    mc[target]=(merging&&tCat&&cat===merchantIndex().prim(SL.old))?tCat:cat;patch.mcat=mc;
     const ch=Object.assign({},S.profile.mchan);if(SL.old&&SL.old!==target){if(!ch[target]&&ch[SL.old])ch[target]=ch[SL.old];delete ch[SL.old]}
-    const cv=$('#lchan').value;if(cv)ch[target]=cv;else delete ch[target];patch.mchan=ch;
+    let cv=$('#lchan').value;if(merging&&tCh&&cv===chanOf(SL.old))cv=tCh;if(cv)ch[target]=cv;else delete ch[target];patch.mchan=ch;
     const mv=$('#lmove');
     if(mv&&mv.checked){const now=Date.now();Object.values(S.exp).forEach(e=>{if(!e.deleted&&e.merchant===target&&e.cat!==cat){S.exp[e.id]=Object.assign({},e,{cat,updatedAt:now});S.pending.e[e.id]=1}})}
   }

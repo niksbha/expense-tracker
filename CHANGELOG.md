@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1 — 2026-11-23
+- Fix: order-message reader no longer mistakes words ending in "rs" (hours, orders) followed by a number for an amount
+- Fix: merging two merchants keeps the target's category and channel unless you change them
+
 ## 0.11.0 — 2026-11-23
 - Food split into Groceries and Eating out (defaults)
 - Channel on each merchant (Delivery app, Offline store, Mart, Online store); shopping-app presets set it

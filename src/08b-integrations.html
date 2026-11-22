@@ -25,7 +25,7 @@ function addPresets(names){
 const MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
 function parseOrder(txt){
   const t=String(txt||''),low=t.toLowerCase(),out={};
-  const re=/(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)/gi;let m,all=[];
+  const re=/(?:₹|\b(?:rs|inr)\b\.?)\s*([\d,]+(?:\.\d{1,2})?)/gi;let m,all=[];
   while((m=re.exec(t))){const v=parseFloat(m[1].replace(/,/g,''));if(v>0)all.push({v,pre:low.slice(Math.max(0,m.index-28),m.index)})}
   if(all.length){const key=all.find(a=>/(paid|payable|grand|debited|charged)/.test(a.pre))||all.find(a=>/(total|amount|bill)/.test(a.pre));out.amount=(key||all[0]).v}
   const names=PRESETS.map(p=>({n:p.n,k:p.k,c:p.c})).concat(merchantList().map(n=>({n,k:[n.toLowerCase()],c:null})));
