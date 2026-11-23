@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.1 — 2026-11-24
+- Home: removed the Recent list (same data as History)
+
 ## 0.14.0 — 2026-11-24
 - Add screen: amount pinned at top, compact keypad, one-row categories ordered by use, type-to-search merchant, Today/Yesterday buttons, Paste order moved to header, readable disabled Save
 - Notifications: bar at top plus bell with list; reminders, month recap, backup reminder, milestones, app updates; suggested transactions with Add / Ignore (paste a bank SMS to create one)

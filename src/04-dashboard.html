@@ -81,8 +81,6 @@ function vHome(){
   h+='<div class="chartbox">'+barChart(vals,labels,tips,every)+'</div>'+
     '<details><summary class="small fg2" style="cursor:pointer;min-height:32px">View as table</summary><table class="small num" style="width:100%;border-collapse:collapse">'+
     vals.map((v,i)=>v>0||S.trend==='monthly'?'<tr><td style="padding:4px 0" class="fg2">'+esc(tips[i].split(' · ')[0])+'</td><td style="text-align:right">'+money(v)+'</td></tr>':'').join('')+'</table></details></div>';
-  const rec=all.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt).slice(0,5);
-  h+='<h2>Recent</h2>'+rec.map(itemHtml).join('')+'<button class="btn sec block" data-act="tab" data-t="history" style="margin-top:6px">See all expenses</button>';
   return h;
 }
 function itemHtml(e,hist){const c=catOf(e.cat),sub=[e.merchant?c.name:'',e.payment,e.note,dayName(e.date)].filter(Boolean).join(' · ');
