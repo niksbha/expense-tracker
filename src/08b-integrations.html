@@ -46,7 +46,7 @@ function applyPaste(){
   if(r.date){$('#sdate').value=r.date;found.push('date')}
   if(r.merchant){
     const cat=S.profile.mcat[r.merchant]||(r.cat&&S.profile.cats.some(c=>c.id===r.cat)?r.cat:null);
-    if(cat){SH.cat=cat;$('#cchips').innerHTML=chipsHtml()}
+    if(cat){SH.cat=cat;syncCatChips()}
     SH.allM=false;refreshMerchantUI(r.merchant);found.push('merchant')}
   if(note)note.textContent=found.length?'Filled: '+found.join(', ')+'. Check, then save.':(box.value.trim()?'Could not find an amount. Type it on the keypad.':'');
 }

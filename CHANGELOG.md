@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0 — 2026-11-24
+- Add screen: amount pinned at top, compact keypad, one-row categories ordered by use, type-to-search merchant, Today/Yesterday buttons, Paste order moved to header, readable disabled Save
+- Notifications: bar at top plus bell with list; reminders, month recap, backup reminder, milestones, app updates; suggested transactions with Add / Ignore (paste a bank SMS to create one)
+- One-time in-app migration: Food split into Groceries / Eating out, merchant channels filled
+- Deleting a category lets you choose where its expenses go
+
 ## 0.13.0 — 2026-11-23
 - Fix (sync): profile settings now merge field by field, so a device with older data can no longer overwrite newer merchants, categories or channels
 - Home: donut legend shows full category names; daily chart stops at today; daily average in whole rupees

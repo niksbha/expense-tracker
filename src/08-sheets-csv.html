@@ -14,7 +14,20 @@ function showTip(el){hideTip();const box=el.closest('.chartbox');if(!box)return;
 let SH=null;
 const sheetOpen=()=>!!$('#layer').firstChild;
 function closeSheet(){$('#layer').innerHTML='';SH=null;SC=null;SL=null;SR=null}
-function chipsHtml(){return S.profile.cats.map(c=>'<button class="chip" data-act="pickCat" data-id="'+c.id+'" aria-pressed="'+(SH.cat===c.id)+'">'+
+function catsByUse(){
+  const cut=addDays(today(),-120),n={};live().forEach(e=>{if(e.date>=cut)n[e.cat]=(n[e.cat]||0)+1});
+  return S.profile.cats.map((c,i)=>({c,i})).sort((a,b)=>(n[b.c.id]||0)-(n[a.c.id]||0)||a.i-b.i).map(x=>x.c);
+}
+function syncCatChips(){
+  document.querySelectorAll('#cchips .chip').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.id===SH.cat)));
+  const row=$('#cchips'),s=$('#cchips [aria-pressed="true"]');
+  if(row&&s&&typeof s.offsetLeft==='number')row.scrollLeft=Math.max(0,s.offsetLeft-(row.clientWidth-s.offsetWidth)/2);
+}
+function syncDateChips(){
+  const v=$('#sdate')&&$('#sdate').value;
+  document.querySelectorAll('#dchips .chip').forEach(b=>b.setAttribute('aria-pressed',String(v===addDays(today(),+b.dataset.d))));
+}
+function chipsHtml(){return catsByUse().map(c=>'<button class="chip" data-act="pickCat" data-id="'+c.id+'" aria-pressed="'+(SH.cat===c.id)+'">'+
   '<span class="dot" style="background:var(--c'+c.color+')"></span>'+esc(c.name)+'</button>').join('')}
 function updateAmt(){
   const a=$('#amt');if(!a)return;
@@ -29,25 +42,26 @@ function openExpense(id){
   const curPay=e?(e.payment||''):(pays.includes(S.lastPay)?S.lastPay:pays[0]);
   const keys=['1','2','3','4','5','6','7','8','9','.','0','back'];
   $('#layer').innerHTML='<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="'+(e?'Edit expense':'Add expense')+'">'+
-    '<div class="hd"><span>'+(e?'Edit expense':'Add expense')+'</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
-    '<div class="sc"><div class="amount num" id="amt" aria-live="polite"></div>'+
-    '<div class="chips" id="cchips" role="group" aria-label="Category">'+chipsHtml()+'</div>'+
-    (e?'':'<div class="f"><button class="ulink" data-act="togglePaste" style="text-align:left">Paste order message (Blinkit, Instamart, Myntra, BigBasket…)</button>'+
-      '<div id="pastebox" hidden><textarea id="ptext" data-in="ptext" rows="3" placeholder="Paste an order SMS, email text or bank alert" style="width:100%;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px;font:inherit"></textarea>'+
-      '<div class="small fg2" id="pnote" aria-live="polite"></div></div></div>')+
-    '<div class="f" id="mfreqbox" hidden><span>Frequent merchants</span><div class="chips" id="mfreq"></div></div>'+
+    '<div class="hd"><span class="grow">'+(e?'Edit expense':'Add expense')+'</span>'+(e?'':'<button class="ulink" data-act="togglePaste" style="min-height:44px;padding:0 10px">Paste order</button>')+
+    '<button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
+    '<div class="amtbox"><div class="amount num" id="amt" aria-live="polite"></div></div>'+
+    '<div class="sc">'+
+    (e?'':'<div id="pastebox" hidden><textarea id="ptext" data-in="ptext" rows="3" placeholder="Paste an order SMS, email text or bank alert" style="width:100%;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px;font:inherit"></textarea>'+
+      '<div class="small fg2" id="pnote" aria-live="polite"></div></div>')+
+    '<div class="chips scrollrow" id="cchips" role="group" aria-label="Category">'+chipsHtml()+'</div>'+
+    '<div class="f" id="mfreqbox" hidden><span>Frequent merchants</span><div class="chips scrollrow" id="mfreq"></div></div>'+
+    '<label class="f">Merchant<input id="smerch" type="text" list="mdl" autocomplete="off" maxlength="60" placeholder="Search or type a merchant"><datalist id="mdl"></datalist></label>'+
+    '<div class="chips" id="dchips" role="group" aria-label="Quick date"><button class="chip" data-act="dateQuick" data-d="0">Today</button><button class="chip" data-act="dateQuick" data-d="-1">Yesterday</button></div>'+
     '<div class="two"><label class="f">Date<input id="sdate" type="date" value="'+(e?e.date:today())+'" max="2100-12-31"></label>'+
     '<label class="f">Payment method<select id="spay" data-new="spnew">'+(e&&!e.payment?'<option value="" selected>Not set</option>':'')+
       pays.map(p=>'<option'+(p===curPay?' selected':'')+'>'+esc(p)+'</option>').join('')+'<option value="__new__">+ Add new…</option></select></label></div>'+
     '<div id="datewarn" class="alert warn" hidden>'+ic('warn')+'<span>This date is in the future. Check it before saving.</span></div>'+
     '<input id="spnew" type="text" maxlength="30" placeholder="New payment method" aria-label="New payment method" hidden>'+
-    '<label class="f">Merchant<select id="smerch" data-new="smnew"></select></label><div class="small fg2" id="mhint"></div>'+
-    '<input id="smnew" type="text" maxlength="60" placeholder="New merchant name" aria-label="New merchant name" hidden>'+
     '<label class="f">Note<input id="snote" type="text" maxlength="140" value="'+esc(e?e.note:'')+'" placeholder="Optional"></label>'+
     (e?'<div id="delbox"><button class="btn danger block" data-act="delYes">'+ic('trash')+' Delete expense</button></div>':'')+'</div>'+
     '<div class="pad">'+keys.map(k=>'<button data-act="key" data-k="'+k+'" aria-label="'+(k==='back'?'Backspace':k==='.'?'Decimal point':k)+'">'+(k==='back'?ic('backspace'):k)+'</button>').join('')+
     '<button class="save" id="ssave" data-act="saveExp">'+(e?'Save changes':'Save expense')+'</button></div></div></div>';
-  updateAmt();refreshMerchantUI(e?e.merchant:'');
+  updateAmt();refreshMerchantUI(e?e.merchant:'');syncCatChips();syncDateChips();
 }
 function keyEntry(k){
   let a=SH.amt;
@@ -64,7 +78,7 @@ function saveExpense(){
   if(date>today()&&!SH.future){SH.future=true;$('#datewarn').hidden=false;$('#ssave').textContent='Save anyway';return}
   const pick=(sel,nw,list)=>{const v=$('#'+sel).value;if(v!=='__new__')return v;
     const t=$('#'+nw).value.trim();return list.find(x=>x.toLowerCase()===t.toLowerCase())||t};
-  const merchant=pick('smerch','smnew',merchantList()),payment=pick('spay','spnew',S.profile.payments);
+  const mt=$('#smerch').value.trim().slice(0,60),merchant=merchantList().find(x=>x.toLowerCase()===mt.toLowerCase())||mt,payment=pick('spay','spnew',S.profile.payments);
   const np={};
   if(merchant&&!S.profile.merchants.includes(merchant))np.merchants=S.profile.merchants.concat(merchant);
   if(payment&&!S.profile.payments.includes(payment))np.payments=S.profile.payments.concat(payment);
@@ -73,7 +87,8 @@ function saveExpense(){
   if(payment)S.lastPay=payment;
   const rec={id:SH.id||newId(),amount,cat:SH.cat,date,merchant,payment,note:$('#snote').value.trim(),createdAt:old?old.createdAt:Date.now()};
   const k=mkey(date),before={};budgetRows(k).forEach(r=>{before[r.key]=r.level});
-  putExpense(rec);closeSheet();
+  const txId=SH.txn;putExpense(rec);closeSheet();
+  if(txId){const tx=S.inbox.find(x=>x.id===txId);if(tx){tx.status='added';save();renderNotes()}}
   let msg=old?'Changes saved':'Expense saved';
   budgetRows(k).forEach(r=>{if(LV[r.level]>LV[before[r.key]||'']){msg=r.level==='crit'?r.name+' is over its limit':r.name+' reached 80% of its limit'}});
   toast(msg);
@@ -104,21 +119,23 @@ function saveCat(){
   putProfile({cats});closeSheet();toast('Category saved');
 }
 function deleteCat(){
-  const id=SC.id,now=Date.now();
-  Object.values(S.exp).forEach(e=>{if(e.cat===id){S.exp[e.id]=Object.assign({},e,{cat:'other',updatedAt:now});S.pending.e[e.id]=1}});
+  const id=SC.id,now=Date.now(),mv=$('#cmove'),to=(mv&&mv.value&&mv.value!==id)?mv.value:'other';
+  Object.values(S.exp).forEach(e=>{if(e.cat===id){S.exp[e.id]=Object.assign({},e,{cat:to,updatedAt:now});S.pending.e[e.id]=1}});
   const budget=JSON.parse(JSON.stringify(S.profile.budget));delete budget.cats[id];
-  putProfile({cats:S.profile.cats.filter(c=>c.id!==id),budget});closeSheet();toast('Category deleted');
+  const mc=Object.assign({},S.profile.mcat);Object.keys(mc).forEach(m=>{if(mc[m]===id)mc[m]=to});
+  putProfile({cats:S.profile.cats.filter(c=>c.id!==id),budget,mcat:mc});closeSheet();toast('Category deleted');
 }
 
 /* ---------- CSV ---------- */
 const csvCell=v=>{v=String(v==null?'':v);return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
 async function exportCsv(list){
   if(!list.length){toast('No expenses to export yet.');return}
+  S.lastExport=Date.now();save();
   const rows=list.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.createdAt-b.createdAt);
   const csv='﻿'+['Date,Amount,Currency,Category,Merchant,Channel,Payment method,Note'].concat(rows.map(e=>
     [e.date,e.amount.toFixed(2),S.profile.currency,catOf(e.cat).name,e.merchant,chanOf(e.merchant),e.payment,e.note].map(csvCell).join(','))).join('\r\n');
   let dl=null;try{dl=window.claude&&claude.use?await claude.use('downloads'):null}catch(e){}
-  if(dl){try{await dl.save({filename:'expenses-'+today()+'.csv',data:csv});toast('CSV ready');return}catch(e){if(e&&e.code==='declined')return}}
+  if(dl){try{await dl.save({filename:'expenses-'+today()+'.csv',data:csv});S.lastExport=Date.now();save();toast('CSV ready');return}catch(e){if(e&&e.code==='declined')return}}
   $('#layer').innerHTML='<div class="scrim"><div class="sheet"><div class="hd"><span>Export CSV</span><button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div>'+
     '<div class="sc"><div class="small fg2">Downloads are not available here. Copy the text and paste it into a .csv file.</div>'+
     '<textarea id="csvbox" readonly style="width:100%;height:220px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px;font-family:monospace;font-size:12px"></textarea>'+

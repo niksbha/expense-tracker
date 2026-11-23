@@ -17,7 +17,8 @@ document.addEventListener('click',async ev=>{
     case'toggleFilters':S.hist.open=!S.hist.open;render();break;
     case'hcat':{const c=S.hist.cat,i=c.indexOf(d.id);i<0?c.push(d.id):c.splice(i,1);el.setAttribute('aria-pressed',String(i<0));renderHist();break}
     case'clearFilters':S.hist=Object.assign(S.hist,{cat:[],pay:[],chan:[],from:'',to:'',min:'',max:''});render();break;
-    case'pickCat':SH.cat=d.id;$('#cchips').innerHTML=chipsHtml();refreshMerchantUI();break;
+    case'pickCat':SH.cat=d.id;syncCatChips();refreshMerchantUI();break;
+    case'dateQuick':{$('#sdate').value=addDays(today(),+d.d);SH.future=false;const w=$('#datewarn');if(w)w.hidden=true;syncDateChips();break}
     case'mAll':SH.allM=!SH.allM;refreshMerchantUI();break;
     case'key':keyEntry(d.k);break;
     case'saveExp':saveExpense();break;
@@ -47,12 +48,18 @@ document.addEventListener('click',async ev=>{
     case'presetAll':addPresets(PRESETS.map(p=>p.n));toast('Shopping apps added');break;
     case'trashRestore':trashRestore(d.id);break;
     case'trashForever':trashErase([d.id]).then(ok=>{if(ok)toast('Deleted for good')});break;
+    case'notes':openNotes();break;
+    case'noteDismiss':noteDismiss(d.id);break;
+    case'noteGo':noteGo(d.id);break;
+    case'noteAdd':noteAdd(d.id);break;
+    case'noteIgnore':noteIgnore(d.id);break;
+    case'noteSuggest':noteSuggest();break;
     case'newCat':openCat();break;
     case'editCat':openCat(d.id);break;
     case'catIcon':SC.icon=d.v;$('#cicons').innerHTML=iconPickHtml();break;
     case'catColor':SC.color=+d.v;$('#cswatch').innerHTML=swatchHtml();break;
     case'catSave':saveCat();break;
-    case'catDelAsk':$('#cdel').innerHTML='<div class="confirm"><div>Delete this category? Its expenses move to Other.</div><div class="two"><button class="btn sec" data-act="catDelNo">Cancel</button><button class="btn danger" data-act="catDelYes">Delete</button></div></div>';break;
+    case'catDelAsk':$('#cdel').innerHTML='<div class="confirm"><div>Delete this category?</div><label class="f">Move its expenses to<select id="cmove">'+S.profile.cats.filter(c=>c.id!==SC.id).map(c=>'<option value="'+c.id+'"'+(c.id==='other'?' selected':'')+'>'+esc(c.name)+'</option>').join('')+'</select></label><div class="two"><button class="btn sec" data-act="catDelNo">Cancel</button><button class="btn danger" data-act="catDelYes">Delete</button></div></div>';break;
     case'catDelNo':$('#cdel').innerHTML='<button class="btn danger block" data-act="catDelAsk">'+ic('trash')+' Delete category</button>';break;
     case'catDelYes':deleteCat();break;
     case'theme':putProfile({theme:d.v});break;
@@ -62,7 +69,7 @@ document.addEventListener('click',async ev=>{
     case'confirmNo':S.confirm=null;render();break;
     case'confirmYes':{
       const w=d.id;S.confirm=null;
-      if(w==='device'){lsDel(cacheKey());S.exp={};S.pending={e:{},p:false};S.profile=normProfile();S.reached=false;applyTheme();render();
+      if(w==='device'){lsDel(cacheKey());S.nread={};S.inbox=[];S.nseed=0;S.lastExport=0;S.exp={};S.pending={e:{},p:false};S.profile=normProfile();S.reached=false;applyTheme();render();
         if(S.hasDb)connect();toast('This device was cleared')}
       else if(w==='wipe'){render();if(await wipeExpenses())toast('All expenses deleted')}
       else if(w==='account'){render();await wipeAccount();toast('Account data deleted')}
@@ -77,6 +84,7 @@ document.addEventListener('click',async ev=>{
 });
 document.addEventListener('pointerover',ev=>{const t=ev.target.closest&&ev.target.closest('[data-tip]');if(t)showTip(t);else if(!(ev.target.closest&&ev.target.closest('.tip')))hideTip()});
 document.addEventListener('input',ev=>{
+  if(ev.target.id==='smerch'&&SH&&!SH.id&&(ev.inputType==='insertReplacementText'||ev.inputType===undefined)){const mm=merchantList().find(x=>x===ev.target.value);if(mm)applyMerchant(mm)}
   const k=ev.target.dataset&&ev.target.dataset.in;if(!k)return;
   const h=S.hist,v=ev.target.value;
   if(k==='hq'){h.q=v;renderHist()}
@@ -90,8 +98,8 @@ document.addEventListener('input',ev=>{
 document.addEventListener('change',ev=>{
   const tid=ev.target.id;
   if(tid==='ifile'){readImportFile(ev.target.files&&ev.target.files[0]);return}
-  if(tid==='sdate'&&SH){SH.future=false;const w=$('#datewarn'),s=$('#ssave');if(w)w.hidden=!(ev.target.value>today());if(s)s.textContent=SH.id?'Save changes':'Save expense'}
-  if(tid==='smerch'&&SH&&!SH.id&&ev.target.value&&ev.target.value!=='__new__')applyMerchant(ev.target.value);
+  if(tid==='sdate'&&SH){syncDateChips();SH.future=false;const w=$('#datewarn'),s=$('#ssave');if(w)w.hidden=!(ev.target.value>today());if(s)s.textContent=SH.id?'Save changes':'Save expense'}
+  if(tid==='smerch'&&SH&&!SH.id&&ev.target.value){const mm=merchantList().find(x=>x.toLowerCase()===ev.target.value.trim().toLowerCase());if(mm)applyMerchant(mm)}
   const nw=ev.target.dataset&&ev.target.dataset.new;
   if(nw){const box=$('#'+nw);box.hidden=ev.target.value!=='__new__';if(!box.hidden)box.focus();return}
   const k=ev.target.dataset&&ev.target.dataset.in;if(!k)return;const v=ev.target.value;
@@ -117,7 +125,7 @@ async function boot(){
   let uid=null,name='';
   if(user){try{uid=await user.id();name=(await user.me()).name||''}catch(e){}}
   if(uid){
-    if(uid!==S.uid){S.uid=uid;S.exp={};S.pending={e:{},p:false};S.profile=normProfile();loadCache()}
+    if(uid!==S.uid){S.uid=uid;S.nread={};S.inbox=[];S.nseed=0;S.lastExport=0;S.exp={};S.pending={e:{},p:false};S.profile=normProfile();loadCache()}
     S.uid=uid;lsSet('et.last',uid);
   }
   if(!S.profile.name&&name){S.profile.name=name;S.profile.updatedAt=Date.now();S.profile.fu.name=S.profile.updatedAt;S.pending.p=true}
@@ -125,7 +133,7 @@ async function boot(){
   applyTheme();save();render();
   if(S.hasDb)connect();
   setStatus();
-  if(!S.hasDb)runRecurring();
+  if(!S.hasDb){runMigrations();runRecurring()}
   setTimeout(purgeTrash,5000);
 }
 boot();

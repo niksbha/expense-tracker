@@ -37,7 +37,17 @@ svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stro
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;
   justify-content:space-between;gap:12px;padding:14px 0 10px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-.top h1{font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0}
+.top h1{font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0;white-space:nowrap}
+.top{justify-content:flex-start}.top .grow{flex:1;min-width:0}
+.top .pill{flex:0 1 auto;min-width:0;max-width:48vw;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:380px){.top h1{font-size:18px}}
+.bell{position:relative;width:40px;height:40px}
+.badge{position:absolute;top:2px;right:0;min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:var(--accent-fg);font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 4px}
+.nbar{display:flex;align-items:center;gap:8px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:14px;padding:6px 6px 6px 10px;margin:0 0 6px}
+.nbar .nmain{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-align:left;min-height:44px}
+.nbar .nact{display:flex;align-items:center;gap:6px;flex:none}
+.nico{width:34px;height:34px;border-radius:10px;background:var(--surface);display:grid;place-items:center;flex:none;color:var(--accent)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--fg2);
   background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:5px 10px;white-space:nowrap}
 .pill .d{width:8px;height:8px;border-radius:50%;background:var(--good)}
@@ -95,16 +105,21 @@ label.f{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--fg
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--bg);width:100%;max-width:560px;max-height:100%;display:flex;flex-direction:column;border-radius:20px 20px 0 0;
   padding-top:env(safe-area-inset-top,0px)}
-.sheet .sc{overflow:auto;padding:16px 16px 8px;display:flex;flex-direction:column;gap:14px}
+.sheet .sc{overflow:auto;padding:10px 16px 8px;display:flex;flex-direction:column;gap:12px;min-height:0}
 .sheet .hd{display:flex;align-items:center;justify-content:space-between;padding:12px 8px 0 16px;font-weight:650;font-size:17px}
 .iconbtn{width:44px;height:44px;display:grid;place-items:center;border-radius:12px}
-.amount{font-size:48px;font-weight:700;letter-spacing:-.03em;text-align:center;line-height:1.1;min-height:56px;overflow-wrap:anywhere}
+.amount{font-size:40px;font-weight:700;letter-spacing:-.03em;text-align:center;line-height:1.1;min-height:46px;overflow-wrap:anywhere}
+.amtbox{padding:2px 16px 0}
+.sheet .sc>*{flex-shrink:0}
+.chips.scrollrow{position:relative;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips.scrollrow::-webkit-scrollbar{display:none}
+.chips.scrollrow .chip{flex:0 0 auto}
 .amount .cur{font-size:26px;color:var(--muted);font-weight:600;margin-right:4px}
-.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 16px calc(12px + env(safe-area-inset-bottom,0px));
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px 16px calc(10px + env(safe-area-inset-bottom,0px));
   background:var(--bg);border-top:1px solid var(--line)}
-.pad button{height:54px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:24px;font-weight:600;display:grid;place-items:center}
-.pad .save{grid-column:1/-1;background:var(--accent);color:var(--accent-fg);font-size:17px;border-color:transparent;height:52px}
-.pad .save:disabled{opacity:.4}
+.pad button{height:46px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:22px;font-weight:600;display:grid;place-items:center}
+.pad .save{grid-column:1/-1;background:var(--accent);color:var(--accent-fg);font-size:17px;border-color:transparent;height:48px}
+.pad .save:disabled{background:var(--surface);color:var(--muted);border-color:var(--line)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:30;
   background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;font-weight:500;max-width:90%;text-align:center}
 .swatches{display:flex;flex-wrap:wrap;gap:8px}

@@ -1,0 +1,23 @@
+/* ---------- one-time data migrations (run in the app so every device stays in step) ---------- */
+const MIG=2;
+function matchRule(n){
+  const l=String(n||'').toLowerCase(),p=PRESETS.find(x=>x.k.some(k=>l.includes(k)));
+  if(p)return{c:p.c,ch:p.ch};
+  if(/grocer|gocery|kirana|supermarket|vegetable|dmart|\bmart\b/.test(l))return{c:'groceries',ch:'Offline store'};
+  return null;
+}
+function runMigrations(){
+  const P=S.profile;
+  if(P.mig>=MIG)return;
+  if(S.hasDb&&!(S.profReady&&S.reached))return;
+  const mc=Object.assign({},P.mcat),mh=Object.assign({},P.mchan),now=Date.now();
+  Object.keys(mc).forEach(m=>{if(mc[m]==='food')mc[m]=(matchRule(m)||{c:'eating'}).c});
+  merchantList().forEach(m=>{if(!mh[m]){const r=matchRule(m);if(r&&r.ch)mh[m]=r.ch}});
+  Object.values(S.exp).forEach(e=>{
+    if(e.deleted||e.cat!=='food'||!e.merchant)return;
+    const c=mc[e.merchant]&&mc[e.merchant]!=='food'?mc[e.merchant]:(matchRule(e.merchant)||{c:'eating'}).c;
+    S.exp[e.id]=Object.assign({},e,{cat:c,updatedAt:now});S.pending.e[e.id]=1});
+  const cats=live().some(e=>e.cat==='food')?P.cats:P.cats.filter(c=>c.id!=='food');
+  putProfile({mcat:mc,mchan:mh,cats,mig:MIG},true);
+  save();render();
+}

@@ -1,6 +1,6 @@
 /* ---------- state ---------- */
 const DEFAULT_PAY=['Cash','UPI','Credit card','Debit card','Net banking','Wallet'];
-function newProfile(){return{name:'',currency:'INR',theme:'system',cats:JSON.parse(JSON.stringify(DEFAULT_CATS)),budget:{overall:null,cats:{}},payments:DEFAULT_PAY.slice(),merchants:[],mcat:{},mchan:{},recurring:[],fu:{},updatedAt:0}}
+function newProfile(){return{name:'',currency:'INR',theme:'system',cats:JSON.parse(JSON.stringify(DEFAULT_CATS)),budget:{overall:null,cats:{}},payments:DEFAULT_PAY.slice(),merchants:[],mcat:{},mchan:{},recurring:[],mig:2,fu:{},updatedAt:0}}
 function normProfile(p){
   const n=Object.assign(newProfile(),p||{});
   if(!Array.isArray(n.cats))n.cats=[];
@@ -14,21 +14,23 @@ function normProfile(p){
   if(!Array.isArray(n.recurring))n.recurring=[];
   if(!n.mcat||typeof n.mcat!=='object'||Array.isArray(n.mcat))n.mcat={};
   if(!n.mchan||typeof n.mchan!=='object'||Array.isArray(n.mchan))n.mchan={};
+  if(p&&p.mig===undefined)n.mig=0;
+  n.mig=+n.mig||0;
   if(!n.fu||typeof n.fu!=='object'||Array.isArray(n.fu))n.fu={};
   return n;
 }
-const S={uid:null,profile:newProfile(),exp:{},pending:{e:{},p:false},tab:'home',net:navigator.onLine!==false,
+const S={nread:{},inbox:[],lastExport:0,nseed:0,uid:null,profile:newProfile(),exp:{},pending:{e:{},p:false},tab:'home',net:navigator.onLine!==false,
   syncing:false,hasDb:false,writable:true,reached:false,unreach:false,trend:'daily',
-  hist:{q:'',cat:[],pay:[],chan:[],from:'',to:'',min:'',max:'',open:false},lastCat:'groceries',lastPay:'',dashMonth:mkey(today()),sub:null};
+  profReady:false,hist:{q:'',cat:[],pay:[],chan:[],from:'',to:'',min:'',max:'',open:false},lastCat:'groceries',lastPay:'',dashMonth:mkey(today()),sub:null};
 const cacheKey=()=>'et.v1.'+(S.uid||lsGet('et.last')||'anon');
-function save(){lsSet(cacheKey(),JSON.stringify({profile:S.profile,exp:S.exp,pending:S.pending,lastCat:S.lastCat,lastPay:S.lastPay}))}
+function save(){lsSet(cacheKey(),JSON.stringify({profile:S.profile,exp:S.exp,pending:S.pending,lastCat:S.lastCat,lastPay:S.lastPay,nread:S.nread,inbox:S.inbox,lastExport:S.lastExport,nseed:S.nseed}))}
 function loadCache(){
   const raw=lsGet(cacheKey());if(!raw)return;
   try{const d=JSON.parse(raw);S.profile=normProfile(d.profile);S.exp=d.exp||{};S.pending=d.pending||{e:{},p:false};
-    if(!S.pending.e)S.pending.e={};S.lastCat=d.lastCat||'groceries';S.lastPay=d.lastPay||''}catch(e){}
+    if(!S.pending.e)S.pending.e={};S.lastCat=d.lastCat||'groceries';S.lastPay=d.lastPay||'';S.nread=d.nread||{};S.inbox=d.inbox||[];S.lastExport=d.lastExport||0;S.nseed=d.nseed||0}catch(e){}
 }
 /* profile settings merge per field, so a stale device can't overwrite newer lists or maps */
-const PKEYS=['name','currency','theme','cats','budget','payments','merchants','mcat','mchan','recurring'];
+const PKEYS=['name','currency','theme','cats','budget','payments','merchants','mcat','mchan','recurring','mig'];
 const fstamp=(p,k)=>(p.fu&&Object.keys(p.fu).length)?(p.fu[k]||0):(p.updatedAt||0);
 function mergeProfile(a,b){
   const o=Object.assign({},a);o.fu=Object.assign({},a.fu||{});
@@ -97,13 +99,15 @@ function onExpSnap(snap){
   }
   if(ch){save();render()}
   setStatus();
-  if(!snap.metadata.fromCache)runRecurring();
+  if(!snap.metadata.fromCache){runMigrations();runRecurring()}
 }
 function onProfSnap(doc){
+  S.profReady=true;
   if(!doc.exists){if(S.profile.updatedAt===0){S.profile.updatedAt=Date.now()}S.pending.p=true;flush();return}
   const r=normProfile(doc.data()),m=mergeProfile(S.profile,r);
   if(profSig(m)!==profSig(S.profile)){S.profile=m;applyTheme();save();render()}
   if(profSig(m)!==profSig(r)&&!S.pending.p){S.pending.p=true;flush()}
+  runMigrations();
 }
 function connect(){
   unsubs.forEach(u=>{try{u()}catch(e){}});unsubs=[];

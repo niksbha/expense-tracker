@@ -1,0 +1,77 @@
+/* ---------- notifications: bar at the top + bell ---------- */
+const APP_VERSION='0.14.0',WHATS_NEW='Faster Add screen and a notifications bar.';
+const COUNT_MS=[10,25,50,100,250,500,1000],STREAK_MS=[7,14,30,60,100];
+const nRead=id=>!!S.nread[id];
+function loggedStreak(){
+  const days=new Set(live().map(e=>e.date));let d=today();if(!days.has(d))d=addDays(d,-1);let n=0;
+  while(days.has(d)){n++;d=addDays(d,-1)}return n;
+}
+function seedNotes(){
+  if(S.nseed||!live().length)return;
+  const c=live().length,st=loggedStreak(),now=Date.now();
+  COUNT_MS.forEach(m=>{if(c>=m)S.nread['count-'+m]=now});STREAK_MS.forEach(m=>{if(st>=m)S.nread['streak-'+m]=now});
+  S.nseed=1;if(!S.lastExport)S.lastExport=now;save();
+}
+function buildNotes(){
+  seedNotes();
+  const out=[],add=(o)=>{if(!nRead(o.id))out.push(o)},t=today(),k=mkey(t),all=live();
+  S.inbox.filter(x=>x.status==='pending').forEach(x=>out.push({id:'txn-'+x.id,type:'txn',pri:0,icon:'receipt',title:(x.merchant||'New transaction')+' · '+money(x.amount),
+    body:'Detected'+(x.src?' from '+x.src:'')+' · '+dayName(x.date),txn:x}));
+  if(new Date().getHours()>=20&&all.length>=3&&!all.some(e=>e.date===t))
+    add({id:'remind-'+t,type:'reminder',pri:1,icon:'bolt',title:'Any expenses today?',body:'Nothing added yet today. Add them before you forget.',act:{label:'Add',a:'add'}});
+  if(+t.slice(8)<=3){const pk=prevKey(k),pm=monthExp(pk);
+    if(pm.length){const tot=sum(pm),older=[];let kk=prevKey(pk);const seen=new Set(all.map(e=>mkey(e.date)));
+      for(let i=0;i<12;i++){if(seen.has(kk))older.push(sum(monthExp(kk)));kk=prevKey(kk)}
+      const avg=older.length?older.reduce((a,b)=>a+b,0)/older.length:0;
+      add({id:'recap-'+pk,type:'milestone',pri:2,icon:'chart',title:monthName(pk)+' total: '+money(tot),
+        body:avg>0?(tot>avg?Math.round((tot/avg-1)*100)+'% above':Math.round((1-tot/avg)*100)+'% below')+' your average month.':'Your first full month.',act:{label:'Compare',a:'tab',t:'compare'}})}}
+  if(all.length>=10&&Date.now()-(S.lastExport||Date.now())>30*864e5)
+    add({id:'backup-'+k,type:'reminder',pri:3,icon:'download',title:'Back up your expenses',body:'Last CSV export was over a month ago.',act:{label:'Export',a:'export'}});
+  const c=all.length,cm=COUNT_MS.filter(m=>c>=m).pop();if(cm)add({id:'count-'+cm,type:'milestone',pri:4,icon:'trend',title:cm+' expenses logged',body:'Nice. Your history is getting useful.'});
+  const st=loggedStreak(),sm=STREAK_MS.filter(m=>st>=m).pop();if(sm)add({id:'streak-'+sm,type:'milestone',pri:4,icon:'trend',title:sm+'-day logging streak',body:'You have logged expenses '+sm+' days in a row.'});
+  add({id:'upd-'+APP_VERSION,type:'update',pri:5,icon:'bolt',title:'Updated to '+APP_VERSION,body:WHATS_NEW});
+  return out.sort((a,b)=>a.pri-b.pri);
+}
+function noteBtns(n,small){
+  const id=esc(n.id);
+  if(n.type==='txn')return '<button class="btn'+(small?' sm':'')+'" data-act="noteAdd" data-id="'+id+'">Add</button><button class="btn sec'+(small?' sm':'')+'" data-act="noteIgnore" data-id="'+id+'">Ignore</button>';
+  return (n.act?'<button class="btn'+(small?' sm':'')+'" data-act="noteGo" data-id="'+id+'">'+esc(n.act.label)+'</button>':'')+
+    '<button class="iconbtn" data-act="noteDismiss" data-id="'+id+'" aria-label="Dismiss">'+ic('x')+'</button>';
+}
+function renderNotes(){
+  const bar=$('#nbar'),bell=$('#bell');if(!bar)return;
+  const list=buildNotes(),top=list[0];
+  const badge=$('#bbadge');if(badge){badge.textContent=list.length>9?'9+':String(list.length);badge.hidden=!list.length}
+  if(!top){bar.innerHTML='';return}
+  bar.innerHTML='<div class="nbar" role="region" aria-label="Notification"><button class="nmain" data-act="notes"><span class="nico">'+ic(top.icon||'bolt')+'</span><span class="grow" style="min-width:0">'+
+    '<b>'+esc(top.title)+'</b><span class="small fg2" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(top.body)+'</span></span></button>'+
+    '<span class="nact">'+noteBtns(top,true)+'</span></div>';
+}
+function openNotes(){
+  const list=buildNotes();
+  $('#layer').innerHTML='<div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="Notifications"><div class="hd"><span class="grow">Notifications</span>'+
+    '<button class="iconbtn" data-act="closeSheet" aria-label="Close">'+ic('x')+'</button></div><div class="sc">'+
+    (list.length?list.map(n=>'<div class="card" style="padding:12px"><div class="row" style="gap:12px;align-items:flex-start"><span class="nico">'+ic(n.icon||'bolt')+'</span><span class="grow" style="min-width:0"><b>'+esc(n.title)+'</b>'+
+      '<div class="small fg2">'+esc(n.body)+'</div></span></div><div class="row" style="gap:8px;justify-content:flex-end;margin-top:8px">'+noteBtns(n,false)+'</div></div>').join(''):
+      '<div class="empty"><b>All caught up</b>Reminders, milestones and updates appear here.</div>')+
+    '<div class="f"><span>Suggest an expense from a message</span><textarea id="ntext" rows="3" placeholder="Paste a bank SMS or order message" style="width:100%;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px;font:inherit"></textarea>'+
+    '<button class="btn sec block" data-act="noteSuggest" style="margin-top:8px">Create suggestion</button></div>'+
+    '<div class="small muted">Suggestions wait here until you add or ignore them. Later, bank and app alerts can feed the same list.</div><div style="height:12px"></div></div></div></div>';
+}
+function noteFind(id){return buildNotes().find(n=>n.id===id)}
+function noteDismiss(id){S.nread[id]=Date.now();save();renderNotes();if(sheetOpen()&&$('#ntext'))openNotes()}
+function noteGo(id){const n=noteFind(id);if(!n||!n.act)return;S.nread[id]=Date.now();save();closeSheet();
+  if(n.act.a==='add')openExpense();else if(n.act.a==='tab')setTab(n.act.t);else if(n.act.a==='export')exportCsv(live());renderNotes()}
+function noteAdd(id){const n=noteFind(id);if(!n||!n.txn)return;const x=n.txn;closeSheet();openExpense();SH.txn=x.id;
+  SH.amt=String(x.amount);updateAmt();if(x.date){$('#sdate').value=x.date;syncDateChips()}
+  const cat=(x.merchant&&S.profile.mcat[x.merchant])||(x.cat&&S.profile.cats.some(c=>c.id===x.cat)?x.cat:null);if(cat){SH.cat=cat;syncCatChips()}
+  refreshMerchantUI(x.merchant||'')}
+function noteIgnore(id){const n=noteFind(id);if(!n||!n.txn)return;n.txn.status='ignored';save();renderNotes();if(sheetOpen()&&$('#ntext'))openNotes();toast('Ignored',()=>{n.txn.status='pending';save();renderNotes()})}
+function noteSuggest(){
+  const box=$('#ntext');if(!box)return;const r=parseOrder(box.value);
+  if(!r.amount){toast('Could not find an amount in that message.');return}
+  S.inbox.push({id:newId(),amount:r.amount,merchant:r.merchant||'',cat:r.cat||null,date:r.date||today(),src:'pasted message',status:'pending'});
+  if(S.inbox.length>200)S.inbox=S.inbox.slice(-200);
+  save();renderNotes();openNotes();toast('Suggestion added');
+}
+setInterval(()=>{try{renderNotes()}catch(e){}},60000);

@@ -1,5 +1,6 @@
 <div id="app">
-  <header class="top"><h1>Expense Tracker</h1><span id="sync" class="pill" role="status" aria-live="polite"></span></header>
+  <header class="top"><h1>Expense Tracker</h1><span class="grow"></span><button id="bell" class="iconbtn bell" data-act="notes" aria-label="Notifications"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15L6 17z"/><path d="M10 21h4"/></svg><span id="bbadge" class="badge" hidden></span></button><span id="sync" class="pill" role="status" aria-live="polite"></span></header>
+  <div id="nbar"></div>
   <main id="view"></main>
 </div>
 <nav class="tabs" aria-label="Main"><div class="in" id="tabs"></div></nav>
@@ -40,6 +41,7 @@ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
 backspace:'<path d="M21 5H9l-6 7 6 7h12V5z"/><path d="M13 9l4 6M17 9l-4 6"/>',
 download:'<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
 trend:'<path d="M4 17l5-6 4 4 7-9"/><path d="M15 6h5v5"/>',
+bell:'<path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15L6 17z"/><path d="M10 21h4"/>',
 warn:'<path d="M12 4l9 16H3L12 4z"/><path d="M12 10v4M12 17h.01"/>'};
 const ic=(n,c)=>'<svg class="i'+(c?' '+c:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(ICONS[n]||ICONS.tag)+'</svg>';
 const PICK_ICONS=['tag','home','coffee','gift','paw','plane','phone','wrench','music','dumbbell','car','bolt','utensils','bus','bag','receipt','heart','film','book','dots'];

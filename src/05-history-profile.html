@@ -85,5 +85,5 @@ function tabsHtml(){
 function render(){
   const subs={cats:vCats,merchants:()=>vList('merchant'),pays:()=>vList('pay'),recur:vRecur,trash:vTrash};
   const v=subs[S.sub]||({home:vHome,history:vHistory,compare:vCompare,profile:vProfile})[S.tab];
-  const y=scrollY;$('#view').innerHTML=v();$('#tabs').innerHTML=tabsHtml();setStatus();scrollTo(0,y);
+  const y=scrollY;$('#view').innerHTML=v();$('#tabs').innerHTML=tabsHtml();setStatus();if(typeof renderNotes==='function')renderNotes();scrollTo(0,y);
 }

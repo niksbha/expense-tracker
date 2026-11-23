@@ -13,24 +13,19 @@ function merchantIndex(){
 }
 function refreshMerchantUI(sel){
   const s=$('#smerch');if(!s||!SH)return;
-  const idx=merchantIndex(),cat=catOf(SH.cat);
-  let names=SH.allM?merchantList():idx.forCat(SH.cat);
-  if(sel&&!names.includes(sel))names=names.concat(sel);
-  const cur=sel!==undefined?sel:s.value;
-  s.innerHTML='<option value="">None</option>'+names.map(m=>'<option'+(m===cur?' selected':'')+'>'+esc(m)+'</option>').join('')+
-    '<option value="__new__"'+(cur==='__new__'?' selected':'')+'>+ Add new…</option>';
-  const nb=$('#smnew');if(nb&&s.value!=='__new__')nb.hidden=true;
+  const idx=merchantIndex(),all=merchantList(),inCat=idx.forCat(SH.cat);
+  const names=inCat.concat(all.filter(m=>!inCat.includes(m)));
+  const dl=$('#mdl');if(dl)dl.innerHTML=names.map(m=>'<option value="'+esc(m)+'"></option>').join('');
+  if(sel!==undefined&&s.value!==sel)s.value=sel;
+  const cur=s.value;
   const cnt={};live().forEach(e=>{if(e.merchant&&e.cat===SH.cat)cnt[e.merchant]=(cnt[e.merchant]||0)+1});
   const fq=SH.id?[]:Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x[0]);
   const fb=$('#mfreqbox'),fc=$('#mfreq');
   if(fb&&fc){fb.hidden=!fq.length;fc.innerHTML=fq.map(m=>'<button class="chip" data-act="pickMerch" data-name="'+esc(m)+'" aria-pressed="'+(m===cur)+'">'+esc(m)+'</button>').join('')}
-  const h=$('#mhint');
-  if(h)h.innerHTML=SH.allM?'Showing all merchants · <button class="ulink" data-act="mAll">Only '+esc(cat.name)+'</button>':
-    'Showing '+esc(cat.name)+' merchants · <button class="ulink" data-act="mAll">Show all</button>';
 }
 function applyMerchant(name){
   if(!SH)return;const idx=merchantIndex();
-  if(!idx.forCat(SH.cat).includes(name)){const p=idx.prim(name);if(p){SH.cat=p;const cc=$('#cchips');if(cc)cc.innerHTML=chipsHtml()}}
+  if(!idx.forCat(SH.cat).includes(name)){const p=idx.prim(name);if(p){SH.cat=p;syncCatChips()}}
   refreshMerchantUI(name);
   const l=lastFor(name),p=$('#spay');
   if(l&&p&&l.payment&&Array.from(p.options).some(o=>o.value===l.payment))p.value=l.payment;
