@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.2 — 2026-11-24
+- Update alert with a Reload button when a newer version is published
+
 ## 0.14.1 — 2026-11-24
 - Home: removed the Recent list (same data as History)
 

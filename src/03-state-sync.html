@@ -19,7 +19,7 @@ function normProfile(p){
   if(!n.fu||typeof n.fu!=='object'||Array.isArray(n.fu))n.fu={};
   return n;
 }
-const S={nread:{},inbox:[],lastExport:0,nseed:0,uid:null,profile:newProfile(),exp:{},pending:{e:{},p:false},tab:'home',net:navigator.onLine!==false,
+const S={latest:'',latestNote:'',nread:{},inbox:[],lastExport:0,nseed:0,uid:null,profile:newProfile(),exp:{},pending:{e:{},p:false},tab:'home',net:navigator.onLine!==false,
   syncing:false,hasDb:false,writable:true,reached:false,unreach:false,trend:'daily',
   profReady:false,hist:{q:'',cat:[],pay:[],chan:[],from:'',to:'',min:'',max:'',open:false},lastCat:'groceries',lastPay:'',dashMonth:mkey(today()),sub:null};
 const cacheKey=()=>'et.v1.'+(S.uid||lsGet('et.last')||'anon');

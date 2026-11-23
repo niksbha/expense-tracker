@@ -1,5 +1,6 @@
 /* ---------- notifications: bar at the top + bell ---------- */
-const APP_VERSION='0.14.0',WHATS_NEW='Faster Add screen and a notifications bar.';
+const APP_VERSION='__VERSION__',WHATS_NEW='__WHATS_NEW__';
+const verNum=v=>String(v||'0').split('.').map(n=>+n||0).reduce((a,n,i)=>a+n/Math.pow(1000,i),0);
 const COUNT_MS=[10,25,50,100,250,500,1000],STREAK_MS=[7,14,30,60,100];
 const nRead=id=>!!S.nread[id];
 function loggedStreak(){
@@ -17,6 +18,8 @@ function buildNotes(){
   const out=[],add=(o)=>{if(!nRead(o.id))out.push(o)},t=today(),k=mkey(t),all=live();
   S.inbox.filter(x=>x.status==='pending').forEach(x=>out.push({id:'txn-'+x.id,type:'txn',pri:0,icon:'receipt',title:(x.merchant||'New transaction')+' · '+money(x.amount),
     body:'Detected'+(x.src?' from '+x.src:'')+' · '+dayName(x.date),txn:x}));
+  if(S.latest&&verNum(S.latest)>verNum(APP_VERSION))
+    out.push({id:'newver-'+S.latest,type:'update',pri:0.5,icon:'bolt',title:'Update available: '+S.latest,body:S.latestNote||'Reload to get the latest version.',act:{label:'Reload',a:'reload'}});
   if(new Date().getHours()>=20&&all.length>=3&&!all.some(e=>e.date===t))
     add({id:'remind-'+t,type:'reminder',pri:1,icon:'bolt',title:'Any expenses today?',body:'Nothing added yet today. Add them before you forget.',act:{label:'Add',a:'add'}});
   if(+t.slice(8)<=3){const pk=prevKey(k),pm=monthExp(pk);
@@ -61,7 +64,7 @@ function openNotes(){
 function noteFind(id){return buildNotes().find(n=>n.id===id)}
 function noteDismiss(id){S.nread[id]=Date.now();save();renderNotes();if(sheetOpen()&&$('#ntext'))openNotes()}
 function noteGo(id){const n=noteFind(id);if(!n||!n.act)return;S.nread[id]=Date.now();save();closeSheet();
-  if(n.act.a==='add')openExpense();else if(n.act.a==='tab')setTab(n.act.t);else if(n.act.a==='export')exportCsv(live());renderNotes()}
+  if(n.act.a==='add')openExpense();else if(n.act.a==='tab')setTab(n.act.t);else if(n.act.a==='export')exportCsv(live());else if(n.act.a==='reload'){try{location.reload()}catch(e){toast('Reload the page to update.')}}renderNotes()}
 function noteAdd(id){const n=noteFind(id);if(!n||!n.txn)return;const x=n.txn;closeSheet();openExpense();SH.txn=x.id;
   SH.amt=String(x.amount);updateAmt();if(x.date){$('#sdate').value=x.date;syncDateChips()}
   const cat=(x.merchant&&S.profile.mcat[x.merchant])||(x.cat&&S.profile.cats.some(c=>c.id===x.cat)?x.cat:null);if(cat){SH.cat=cat;syncCatChips()}
@@ -75,3 +78,12 @@ function noteSuggest(){
   save();renderNotes();openNotes();toast('Suggestion added');
 }
 setInterval(()=>{try{renderNotes()}catch(e){}},60000);
+
+/* ask the app's shared 'app/meta' record which version is newest, so open pages learn about updates */
+function checkLatest(){
+  if(!DB)return;
+  try{DB.doc('app/meta').get().then(d=>{if(d&&d.exists){const m=d.data()||{};
+    if(m.version&&verNum(m.version)>verNum(APP_VERSION)&&S.latest!==m.version){S.latest=m.version;S.latestNote=String(m.note||'').slice(0,120);renderNotes()}}}).catch(()=>{})}catch(e){}
+}
+setInterval(checkLatest,5*60000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkLatest()});

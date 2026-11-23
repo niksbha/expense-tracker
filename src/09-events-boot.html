@@ -134,7 +134,7 @@ async function boot(){
   if(S.hasDb)connect();
   setStatus();
   if(!S.hasDb){runMigrations();runRecurring()}
-  setTimeout(purgeTrash,5000);
+  setTimeout(purgeTrash,5000);setTimeout(checkLatest,1500);
 }
 boot();
 </script>
