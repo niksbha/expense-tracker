@@ -63,7 +63,7 @@ function vHome(){
     const ov=rows.find(r=>r.key==='overall');
     if(ov)h+='<div class="card" style="margin-top:12px"><div class="row small"><span class="grow fg2">Monthly budget</span><span class="num">'+money(ov.spent)+' / '+money(ov.limit)+'</span></div>'+
       '<div class="bar '+ov.level+'" style="margin-top:8px"><i style="width:'+Math.min(100,ov.pct)+'%"></i></div></div>'}
-  h+='<h2>By category</h2><div class="card">';
+  h+='<div class="row"><h2 class="grow">By category</h2><button class="iconbtn" data-act="exOpen" aria-label="Explore spending by period" style="margin-top:12px">'+ic('expand')+'</button></div><div class="card">';
   const bc=byCat(list);
   if(!bc.length)h+='<div class="muted small">No spending in '+monthName(k)+'.</div>';
   else{let rows=bc.slice(0,6).map(r=>{const c=catOf(r.id);return{name:c.name,v:r.v,color:'var(--c'+c.color+')'}});

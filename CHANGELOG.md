@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.0 — 2026-11-26
+- Spending breakdown screen: filter the category chart by all time, year, quarter or date range
+- Category legend shows amount and percentage on one line
+
 ## 0.14.7 — 2026-11-26
 - History: gap between days that have a single entry
 

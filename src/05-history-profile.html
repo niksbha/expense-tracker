@@ -84,7 +84,7 @@ function tabsHtml(){
     '<button class="fab" data-act="add" aria-label="Add expense">'+ic('plus')+'</button>'+t('compare','trend','Compare')+t('profile','user','Profile');
 }
 function render(){
-  const subs={cats:vCats,merchants:()=>vList('merchant'),pays:()=>vList('pay'),recur:vRecur,trash:vTrash};
+  const subs={cats:vCats,merchants:()=>vList('merchant'),pays:()=>vList('pay'),recur:vRecur,trash:vTrash,explore:vExplore};
   const v=subs[S.sub]||({home:vHome,history:vHistory,compare:vCompare,profile:vProfile})[S.tab];
   const y=scrollY;$('#view').innerHTML=v();$('#tabs').innerHTML=tabsHtml();setStatus();if(typeof renderNotes==='function')renderNotes();scrollTo(0,y);
 }

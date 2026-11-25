@@ -74,6 +74,10 @@ document.addEventListener('click',async ev=>{
       else if(w==='wipe'){render();if(await wipeExpenses())toast('All expenses deleted')}
       else if(w==='account'){render();await wipeAccount();toast('Account data deleted')}
       break}
+    case'exOpen':S.sub='explore';S.confirm=null;render();scrollTo(0,0);break;
+    case'exBack':S.sub=null;S.tab='home';render();scrollTo(0,0);break;
+    case'exMode':EX.mode=d.v;render();break;
+    case'exNav':exNav(+d.d);render();break;
     case'importOpen':openImport();break;
     case'importPreview':previewImport();break;
     case'importGo':runImport();break;
@@ -92,6 +96,7 @@ document.addEventListener('input',ev=>{
   else if(k==='hto'){h.to=v;renderHist()}
   else if(k==='hmin'){h.min=v;renderHist()}
   else if(k==='hmax'){h.max=v;renderHist()}
+  else if(k==='exfrom'||k==='exto'){EX[k==='exfrom'?'from':'to']=v;const b=$('#exres');if(b)b.innerHTML=exResult()}
   else if(k==='ptext'){applyPaste()}
   else if(k==='mq'){S.mq=v;const b=$('#mlist');if(b)b.innerHTML=merchantGroups()}
 });

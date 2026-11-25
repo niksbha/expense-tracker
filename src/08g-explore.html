@@ -1,0 +1,53 @@
+/* ---------- explore: category breakdown with time filters ---------- */
+const EX={mode:'all',y:0,q:0,from:'',to:''};
+function exReset(){const t=today();EX.mode='all';EX.y=+t.slice(0,4);EX.q=Math.floor((+t.slice(5,7)-1)/3);EX.from='';EX.to=''}
+function exFirst(){const d=live().map(e=>e.date).sort();return d[0]||today()}
+function exRange(){
+  if(EX.mode==='year')return{from:EX.y+'-01-01',to:EX.y+'-12-31',label:String(EX.y)};
+  if(EX.mode==='quarter'){const m1=EX.q*3+1,m3=m1+2,k3=EX.y+'-'+pad2(m3);
+    return{from:EX.y+'-'+pad2(m1)+'-01',to:k3+'-'+pad2(daysIn(k3)),label:'Q'+(EX.q+1)+' '+EX.y+' · '+MONTHS[m1-1].slice(0,3)+' to '+MONTHS[m3-1].slice(0,3)}}
+  if(EX.mode==='range')return{from:EX.from||'0000-00-00',to:EX.to||'9999-99-99',label:'Custom dates'};
+  return{from:'0000-00-00',to:'9999-99-99',label:'All time'};
+}
+function exNavState(){
+  const f=exFirst(),t=today();
+  if(EX.mode==='year')return{prev:EX.y>+f.slice(0,4),next:EX.y<+t.slice(0,4)};
+  const i=EX.y*4+EX.q,fi=+f.slice(0,4)*4+Math.floor((+f.slice(5,7)-1)/3),ti=+t.slice(0,4)*4+Math.floor((+t.slice(5,7)-1)/3);
+  return{prev:i>fi,next:i<ti};
+}
+function exNav(dir){
+  if(EX.mode==='year')EX.y+=dir;
+  else if(EX.mode==='quarter'){let i=EX.y*4+EX.q+dir;EX.y=Math.floor(i/4);EX.q=i%4}
+}
+function exResult(){
+  const r=exRange();
+  if(EX.mode==='range'&&EX.from&&EX.to&&EX.from>EX.to)return '<div class="alert warn" style="margin-top:12px">'+ic('warn')+'<span>The start date is after the end date.</span></div>';
+  const list=live().filter(e=>e.date>=r.from&&e.date<=r.to),total=sum(list);
+  if(!list.length)return '<div class="card" style="margin-top:12px"><div class="muted small">No spending in this period.</div></div>';
+  const bc=byCat(list);
+  let rows=bc.slice(0,8).map(x=>{const c=catOf(x.id);return{name:c.name,v:x.v,color:'var(--c'+c.color+')'}});
+  if(bc.length>8)rows.push({name:'Everything else',v:sum(bc.slice(8).map(x=>({amount:x.v}))),color:'var(--muted)'});
+  const dates=list.map(e=>e.date).sort();
+  let h='<div class="card" style="margin-top:12px"><div class="small fg2">Total spent · '+esc(r.label)+'</div><div class="num" style="font-size:30px;font-weight:700;margin:2px 0">'+money(total)+'</div>'+
+    '<div class="small fg2">'+list.length+' expense'+(list.length===1?'':'s')+' · '+esc(dates[0])+' to '+esc(dates[dates.length-1])+'</div></div>';
+  h+='<h2>By category</h2><div class="card"><div class="chartbox" style="display:flex;justify-content:center;margin-bottom:12px">'+donut(rows,total)+'</div><div class="legend">'+
+    bc.map(x=>{const c=catOf(x.id),p=Math.round(x.v/total*100);
+      return '<div class="lr"><span class="dot" style="background:var(--c'+c.color+')"></span><span class="n">'+esc(c.name)+'</span><span class="rt"><span class="num">'+money(x.v)+'</span><span class="num fg2 small">'+p+'%</span></span></div>'}).join('')+'</div></div>';
+  const mm={};list.forEach(e=>{if(e.merchant)mm[e.merchant]=(mm[e.merchant]||0)+e.amount});
+  const top=Object.entries(mm).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if(top.length)h+='<h2>Top merchants</h2><div class="card"><div class="legend">'+top.map(([n,v])=>'<div class="lr"><span class="n">'+esc(n)+'</span><span class="rt"><span class="num">'+money(v)+'</span><span class="num fg2 small">'+Math.round(v/total*100)+'%</span></span></div>').join('')+'</div></div>';
+  return h;
+}
+function vExplore(){
+  const m=(id,l)=>'<button data-act="exMode" data-v="'+id+'" aria-pressed="'+(EX.mode===id)+'">'+l+'</button>';
+  let h='<div class="row" style="margin-bottom:12px"><button class="iconbtn" data-act="exBack" aria-label="Back">'+ic('back')+'</button><div class="grow" style="font-weight:700;font-size:18px">Spending breakdown</div></div>'+
+    '<div class="seg" role="group" aria-label="Period">'+m('all','All time')+m('year','Year')+m('quarter','Quarter')+m('range','Dates')+'</div>';
+  if(EX.mode==='year'||EX.mode==='quarter'){const n=exNavState(),r=exRange();
+    h+='<div class="card" style="margin-top:12px"><div class="row"><button class="iconbtn" data-act="exNav" data-d="-1" aria-label="Previous"'+(n.prev?'':' disabled style="opacity:.3"')+'>'+ic('back')+'</button>'+
+      '<div class="grow" style="text-align:center;font-weight:600">'+esc(r.label)+'</div>'+
+      '<button class="iconbtn" data-act="exNav" data-d="1" aria-label="Next"'+(n.next?'':' disabled style="opacity:.3"')+'>'+ic('chev')+'</button></div></div>'}
+  else if(EX.mode==='range')
+    h+='<div class="card" style="margin-top:12px"><div class="two"><label class="f">From<input type="date" value="'+EX.from+'" data-in="exfrom"></label><label class="f">To<input type="date" value="'+EX.to+'" data-in="exto"></label></div></div>';
+  return h+'<div id="exres">'+exResult()+'</div>';
+}
+exReset();
