@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.4 — 2026-11-26
+- App-update notices now show only in the bell, not as a banner on Home
+
 ## 0.14.3 — 2026-11-26
 - Fixed: two categories created close together could get the same id and double count totals
 

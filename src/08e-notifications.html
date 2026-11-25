@@ -43,7 +43,7 @@ function noteBtns(n,small){
 }
 function renderNotes(){
   const bar=$('#nbar'),bell=$('#bell');if(!bar)return;
-  const list=buildNotes(),top=list[0];
+  const list=buildNotes(),top=list.find(n=>n.type!=='update');
   const badge=$('#bbadge');if(badge){badge.textContent=list.length>9?'9+':String(list.length);badge.hidden=!list.length}
   if(!top){bar.innerHTML='';return}
   bar.innerHTML='<div class="nbar" role="region" aria-label="Notification"><button class="nmain" data-act="notes"><span class="nico">'+ic(top.icon||'bolt')+'</span><span class="grow" style="min-width:0">'+
