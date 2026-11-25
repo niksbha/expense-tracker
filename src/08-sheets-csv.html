@@ -110,12 +110,13 @@ function openCat(id){
     (c&&SC.custom?'<div id="cdel"><button class="btn danger block" data-act="catDelAsk">'+ic('trash')+' Delete category</button></div>':'')+
     '<div style="height:12px"></div></div></div></div>';
 }
+function newCatId(){let id;do{id='c'+Date.now().toString(36)+Math.floor(Math.random()*1296).toString(36)}while(S.profile.cats.some(c=>c.id===id));return id}
 function saveCat(){
   const name=$('#cname').value.trim();if(!name){toast('Give the category a name.');return}
   if(S.profile.cats.some(c=>c.id!==SC.id&&c.name.toLowerCase()===name.toLowerCase())){toast('You already have a category with that name.');return}
   const cats=S.profile.cats.map(c=>Object.assign({},c));
   if(SC.id){const c=cats.find(x=>x.id===SC.id);c.name=name;c.icon=SC.icon;c.color=SC.color}
-  else cats.push({id:'c'+Date.now().toString(36),name,icon:SC.icon,color:SC.color});
+  else cats.push({id:newCatId(),name,icon:SC.icon,color:SC.color});
   putProfile({cats});closeSheet();toast('Category saved');
 }
 function deleteCat(){

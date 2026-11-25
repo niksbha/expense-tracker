@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.3 — 2026-11-26
+- Fixed: two categories created close together could get the same id and double count totals
+
 ## 0.14.2 — 2026-11-24
 - Update alert with a Reload button when a newer version is published
 

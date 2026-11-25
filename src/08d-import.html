@@ -50,7 +50,7 @@ function planImport(text){
     if(amt>999999999){P.errors.push('Row '+line+': amount too large');return}
     let cname=get(r,'category').slice(0,24),cid='other';
     if(cname){const hit=catBy[cname.toLowerCase()];
-      if(hit)cid=hit;else{cid='c'+Date.now().toString(36)+P.newCats.length;
+      if(hit)cid=hit;else{cid=newCatId();while(cats.some(c=>c.id===cid))cid=newCatId();
         const nc={id:cid,name:cname,icon:'tag',color:(9+P.newCats.length)%COLORS};cats.push(nc);P.newCats.push(nc);catBy[cname.toLowerCase()]=cid}}
     let m=get(r,'merchant').slice(0,60);
     if(m){const ex=mer[m.toLowerCase()];if(ex)m=ex;else{mer[m.toLowerCase()]=m;P.newMerch.push({name:m,cat:cid,ch:null})}}
