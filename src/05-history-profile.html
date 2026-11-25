@@ -21,7 +21,7 @@ function histList(list){
   list.forEach(e=>{
     if(mkey(e.date)!==m){m=mkey(e.date);d='';h+='<div class="mon"><span>'+monthName(m)+'</span><span class="small fg2 num">'+money(mt[m])+'</span></div>'}
     if(e.date!==d&&mkey(e.date)===mkey(today())){d=e.date;
-      if(dc[d]>1)h+='<div class="dayh"><span>Day total · '+dc[d]+' expenses</span><span class="num">'+money(dt[d])+'</span></div>'}
+      if(dc[d]>1)h+='<div class="dayh"><span>Day total</span><span class="num">'+money(dt[d])+'</span></div>'}
     h+=itemHtml(e,true)});
   return h;
 }

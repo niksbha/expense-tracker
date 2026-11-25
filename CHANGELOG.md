@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.6 — 2026-11-26
+- History: day header shows just "Day total" (no expense count)
+
 ## 0.14.5 — 2026-11-26
 - Removed the notification banner on Home; all notifications live in the bell
 
