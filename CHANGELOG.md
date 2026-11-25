@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.5 — 2026-11-26
+- Removed the notification banner on Home; all notifications live in the bell
+
 ## 0.14.4 — 2026-11-26
 - App-update notices now show only in the bell, not as a banner on Home
 
