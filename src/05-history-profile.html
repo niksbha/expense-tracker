@@ -15,14 +15,15 @@ function histSummary(list){return list.length+' expense'+(list.length===1?'':'s'
 function histList(list){
   if(!list.length)return live().length?'<div class="empty"><b>No matches</b>Try a different search or clear the filters.</div>':
     '<div class="empty"><b>No expenses yet</b>Tap + to add your first expense.</div>';
-  let h='',m='',d='';const mt={},dt={};
+  let h='',m='',d='',fresh=false;const mt={},dt={};
   const dc={};
   list.forEach(e=>{mt[mkey(e.date)]=(mt[mkey(e.date)]||0)+e.amount;dt[e.date]=(dt[e.date]||0)+e.amount;dc[e.date]=(dc[e.date]||0)+1});
   list.forEach(e=>{
-    if(mkey(e.date)!==m){m=mkey(e.date);d='';h+='<div class="mon"><span>'+monthName(m)+'</span><span class="small fg2 num">'+money(mt[m])+'</span></div>'}
+    if(mkey(e.date)!==m){m=mkey(e.date);d='';fresh=true;h+='<div class="mon"><span>'+monthName(m)+'</span><span class="small fg2 num">'+money(mt[m])+'</span></div>'}
     if(e.date!==d&&mkey(e.date)===mkey(today())){d=e.date;
+      if(dc[d]===1&&!fresh)h+='<div style="height:14px"></div>';
       if(dc[d]>1)h+='<div class="dayh"><span>Day total</span><span class="num">'+money(dt[d])+'</span></div>'}
-    h+=itemHtml(e,true)});
+    h+=itemHtml(e,true);fresh=false});
   return h;
 }
 function renderHist(){const l=filtered();const s=$('#hsum'),b=$('#hlist');if(s)s.textContent=histSummary(l);if(b)b.innerHTML=histList(l)}

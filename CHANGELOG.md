@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.14.7 — 2026-11-26
+- History: gap between days that have a single entry
+
 ## 0.14.6 — 2026-11-26
 - History: day header shows just "Day total" (no expense count)
 
